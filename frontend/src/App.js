@@ -21,7 +21,7 @@ import AdminSettings from './pages/admin/AdminSettings';
 
 // Components
 import Navbar from './components/ui/Navbar';
-import Footer from './components/ui/Footer';
+// УБРАЛИ Footer
 import ScrollToTop from './components/ui/ScrollToTop';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
@@ -112,7 +112,7 @@ function App() {
     );
 }
 
-// Main layout with navbar and footer
+// Main layout БЕЗ footer
 function MainLayout({ children }) {
     return (
         <>
@@ -122,12 +122,12 @@ function MainLayout({ children }) {
                     {children}
                 </React.Suspense>
             </main>
-            <Footer />
+            {/* УБРАЛИ <Footer /> */}
         </>
     );
 }
 
-// Admin layout without main navbar
+// Admin layout без main navbar
 function AdminLayout({ children }) {
     return (
         <div className="min-h-screen bg-gray-800">

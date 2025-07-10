@@ -1,16 +1,17 @@
 // frontend/src/pages/Portfolio.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
+import { OrbitControls, Environment, Stars } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from 'react-query';
 import { projectsAPI } from '../utils/api';
 import { ProjectGrid3D, ProjectCarousel3D } from '../components/3d/ProjectCard3D';
+import { ProjectCatalog3D } from '../components/3d/ProjectCatalog3D';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import gsap from 'gsap';
 
 const Portfolio = () => {
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'carousel'
+  const [viewMode, setViewMode] = useState('catalog'); // только каталог
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const headerRef = useRef(null);
@@ -95,21 +96,6 @@ const Portfolio = () => {
 
   return (
     <div className="min-h-screen pt-16">
-      {/* Header Section */}
-      <section className="py-20 px-4 bg-gradient-to-b from-gray-900 to-gray-800">
-        <div className="max-w-6xl mx-auto text-center" ref={headerRef}>
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary-400 to-accent-500 bg-clip-text text-transparent">
-            Мои Проекты
-          </h1>
-          <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-            Коллекция интерактивных веб-приложений и 3D визуализаций, 
-            созданных с использованием современных технологий
-          </p>
-          <div className="text-lg text-primary-400">
-            {filteredProjects.length} {filteredProjects.length === 1 ? 'проект' : 'проектов'}
-          </div>
-        </div>
-      </section>
 
       {/* Controls Section */}
       <section className="py-8 px-4 bg-gray-800/50 backdrop-blur-sm border-b border-gray-700">
@@ -140,8 +126,8 @@ const Portfolio = () => {
               </svg>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-2">
+            {/* Filters + Count */}
+            <div className="flex flex-wrap gap-2 items-center">
               <button
                 onClick={() => setFilter('all')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -162,7 +148,7 @@ const Portfolio = () => {
               >
                 Избранные
               </button>
-              {technologies.slice(0, 5).map(tech => (
+              {technologies.slice(0, 4).map(tech => (
                 <button
                   key={tech}
                   onClick={() => setFilter(tech)}
@@ -175,31 +161,19 @@ const Portfolio = () => {
                   {tech}
                 </button>
               ))}
+              
+              {/* Count справа от фильтров */}
+              <div className="ml-4 bg-gray-900/50 px-4 py-2 rounded-lg border border-gray-600">
+                <span className="text-primary-400 font-bold text-lg">
+                  {filteredProjects.length}
+                </span>
+                <span className="text-gray-400 text-sm ml-2">
+                  {filteredProjects.length === 1 ? 'проект' : 'проектов'}
+                </span>
+              </div>
             </div>
 
-            {/* View Mode Toggle */}
-            <div className="flex bg-gray-700 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-primary-500 text-white'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                Сетка
-              </button>
-              <button
-                onClick={() => setViewMode('carousel')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'carousel'
-                    ? 'bg-primary-500 text-white'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                Карусель
-              </button>
-            </div>
+            {/* Убираем переключатель режимов - только каталог */}
           </div>
         </div>
       </section>
@@ -217,32 +191,47 @@ const Portfolio = () => {
               className="h-full"
             >
               <Canvas
-                camera={{ position: [0, 0, 8], fov: 75 }}
+                camera={{ 
+                  position: viewMode === 'catalog' ? [0, 2, 12] : [0, 0, 8], 
+                  fov: 75 
+                }}
                 style={{ background: 'linear-gradient(to bottom, #111827, #1f2937)' }}
               >
-                {/* Lighting */}
-                <ambientLight intensity={0.6} />
+                {/* Lighting setup для разных режимов */}
+                <ambientLight intensity={viewMode === 'catalog' ? 0.7 : 0.6} />
                 <pointLight position={[10, 10, 10]} intensity={1} />
                 <pointLight position={[-10, -10, -10]} intensity={0.5} color="#8b5cf6" />
-                
+                <directionalLight
+                  position={[0, 10, 5]}
+                  intensity={0.8}
+                  castShadow
+                  shadow-mapSize-width={2048}
+                  shadow-mapSize-height={2048}
+                />
+
                 {/* Environment */}
                 <Environment preset="night" />
+                
+                {/* Stars для атмосферы */}
+                <Stars 
+                  radius={300} 
+                  depth={60} 
+                  count={3000} 
+                  factor={4} 
+                  saturation={0} 
+                  fade 
+                />
 
-                {/* 3D Projects */}
-                {viewMode === 'grid' ? (
-                  <ProjectGrid3D projects={filteredProjects} />
-                ) : (
-                  <ProjectCarousel3D projects={filteredProjects} />
-                )}
+                {/* Только каталог */}
+                <ProjectCatalog3D projects={filteredProjects} />
 
-                {/* Controls */}
+                {/* Controls - УБИРАЕМ вращение, только скролл для навигации */}
                 <OrbitControls
-                  enableZoom={true}
-                  enablePan={true}
-                  maxDistance={15}
-                  minDistance={3}
-                  maxPolarAngle={Math.PI / 1.5}
-                  minPolarAngle={Math.PI / 4}
+                  enableZoom={false}
+                  enablePan={false}
+                  enableRotate={false}
+                  maxDistance={20}
+                  minDistance={5}
                 />
               </Canvas>
             </motion.div>
@@ -274,104 +263,15 @@ const Portfolio = () => {
           )}
         </AnimatePresence>
 
-        {/* 3D Navigation Hint */}
-        <div className="absolute bottom-6 left-6 bg-gray-900/80 backdrop-blur-sm rounded-lg p-4 text-sm text-gray-300">
-          <div className="flex items-center space-x-2 mb-2">
-            <span>🖱️</span>
-            <span>Вращайте: зажмите левую кнопку мыши</span>
-          </div>
-          <div className="flex items-center space-x-2 mb-2">
-            <span>🔍</span>
-            <span>Масштаб: колесо мыши</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>👆</span>
-            <span>Перемещение: зажмите правую кнопку</span>
-          </div>
-        </div>
+        {/* УБИРАЕМ 3D Navigation Hint */}
 
-        {/* Stats */}
-        <div className="absolute top-6 right-6 bg-gray-900/80 backdrop-blur-sm rounded-lg p-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary-400">
-              {filteredProjects.length}
-            </div>
-            <div className="text-sm text-gray-400">
-              {viewMode === 'grid' ? 'в сетке' : 'в карусели'}
-            </div>
-          </div>
-        </div>
+        {/* УБИРАЕМ Stats & Info - больше не нужно */}
+
+        {/* УБИРАЕМ View Mode Description */}
       </section>
+
+      {/* УБИРАЕМ Additional Info Section */}
     </div>
-  );
-};
-
-// 2D Project Card Component (Traditional fallback)
-const ProjectCard2D = ({ project, index }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1, duration: 0.6 }}
-      className="bg-gray-800 rounded-xl overflow-hidden border border-gray-700 hover:border-primary-500 transition-all duration-300 group"
-    >
-      {/* Project Image */}
-      <div className="relative h-48 overflow-hidden">
-        <img
-          src={project.imageUrl || '/placeholder-project.jpg'}
-          alt={project.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
-        {project.featured && (
-          <div className="absolute top-4 right-4 bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-bold">
-            ⭐ Избранный
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      </div>
-
-      {/* Project Info */}
-      <div className="p-6">
-        <h3 className="text-xl font-bold text-white mb-3 group-hover:text-primary-400 transition-colors">
-          {project.title}
-        </h3>
-        <p className="text-gray-400 mb-4 line-clamp-3">
-          {project.description}
-        </p>
-        
-        {/* Technologies */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {project.technologies.split(',').slice(0, 3).map((tech, i) => (
-            <span
-              key={i}
-              className="bg-primary-500/20 text-primary-300 px-2 py-1 rounded text-xs"
-            >
-              {tech.trim()}
-            </span>
-          ))}
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <a
-            href={`/portfolio/${project.id}`}
-            className="flex-1 bg-primary-500 hover:bg-primary-600 text-white text-center py-2 rounded-lg transition-colors"
-          >
-            Подробнее
-          </a>
-          {project.projectUrl && (
-            <a
-              href={project.projectUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 border border-primary-500 text-primary-400 hover:bg-primary-500 hover:text-white text-center py-2 rounded-lg transition-colors"
-            >
-              Демо
-            </a>
-          )}
-        </div>
-      </div>
-    </motion.div>
   );
 };
 

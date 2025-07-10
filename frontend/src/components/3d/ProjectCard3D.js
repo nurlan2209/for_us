@@ -96,7 +96,7 @@ const ProjectCard3D = ({
     <Float speed={2} rotationIntensity={0.3} floatIntensity={0.2}>
       <group ref={meshRef} position={position}>
         
-        {/* ✅ БОЛЬШАЯ невидимая область для стабильного hover */}
+        {/* БОЛЬШАЯ невидимая область для стабильного hover */}
         <mesh
           ref={hoverAreaRef}
           position={[0, -0.3, 0]}
@@ -122,19 +122,9 @@ const ProjectCard3D = ({
           />
         </mesh>
 
-        {/* Card border/frame */}
-        <mesh position={[0, 0, -0.06]}>
-          <boxGeometry args={[2.6, 1.9, 0.05]} />
-          <meshStandardMaterial
-            color={hovered ? "#0ea5e9" : "#374151"}
-            transparent
-            opacity={0.9}
-            emissive={hovered ? "#0ea5e9" : "#000000"}
-            emissiveIntensity={hovered ? 0.3 : 0}
-          />
-        </mesh>
+        {/* УБИРАЕМ Card border/frame - больше нет синих рамок */}
 
-        {/* ✅ Всегда видимый заголовок с лучшим качеством */}
+        {/* Всегда видимый заголовок с лучшим качеством */}
         <Html
           position={[0, -1.2, 0.1]}
           center
@@ -174,7 +164,7 @@ const ProjectCard3D = ({
           </div>
         </Html>
 
-        {/* ✅ Технологии с лучшим качеством */}
+        {/* Технологии с лучшим качеством */}
         <Html
           position={[0, -1.6, 0.1]}
           center
@@ -235,7 +225,7 @@ const ProjectCard3D = ({
           </mesh>
         )}
 
-        {/* ✅ КАЧЕСТВЕННАЯ hover панель */}
+        {/* КАЧЕСТВЕННАЯ hover панель */}
         {hovered && (
           <Html
             position={[0, 0, 1.5]}
@@ -314,43 +304,18 @@ const ProjectCard3D = ({
             </motion.div>
           </Html>
         )}
-
-        {/* ✅ Усиленный glow эффект */}
-        {hovered && (
-          <>
-            <mesh position={[0, 0, -0.3]} scale={[4, 3, 0.1]}>
-              <planeGeometry />
-              <meshBasicMaterial
-                color="#0ea5e9"
-                transparent
-                opacity={0.2}
-                blending={THREE.AdditiveBlending}
-              />
-            </mesh>
-            <mesh position={[0, 0, -0.35]} scale={[5, 4, 0.1]}>
-              <planeGeometry />
-              <meshBasicMaterial
-                color="#0ea5e9"
-                transparent
-                opacity={0.1}
-                blending={THREE.AdditiveBlending}
-              />
-            </mesh>
-          </>
-        )}
       </group>
     </Float>
   );
 };
 
-// Остальной код остается тот же...
 export const ProjectGrid3D = ({ projects = [], onProjectClick }) => {
   const groupRef = useRef();
   const [hoveredProject, setHoveredProject] = useState(null);
 
   const getGridPosition = (index) => {
     const cols = 3;
-    const spacing = 4.5; // Еще больше расстояние
+    const spacing = 4.5;
     
     const col = index % cols;
     const row = Math.floor(index / cols);
