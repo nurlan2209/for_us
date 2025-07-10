@@ -1,196 +1,222 @@
-// frontend/src/pages/Home.js
+// frontend/src/pages/Home.js - В стиле unveil.fr
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { OrbitControls, Float, useTexture } from '@react-three/drei';
+import * as THREE from 'three';
 
-// Register GSAP plugins
-gsap.registerPlugin(ScrollTrigger);
-
-// 3D Hero Scene Component
-const HeroScene = () => {
+// Минималистичная 3D сцена для героя
+const HeroScene3D = () => {
+  const meshRef = useRef();
+  
   return (
-    <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-      <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} />
-      <Stars radius={300} depth={60} count={20000} factor={7} saturation={0} fade />
-      
-      {/* Animated 3D Elements */}
-      <mesh rotation={[0, 0, 0]}>
-        <boxGeometry args={[2, 2, 2]} />
-        <meshStandardMaterial 
-          color="#0ea5e9" 
-          transparent 
-          opacity={0.8}
-          wireframe 
-        />
-      </mesh>
-      
-      <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={2} />
-    </Canvas>
+    <>
+      {/* Основной элемент сцены */}
+      <Float speed={1} rotationIntensity={0.2} floatIntensity={0.3}>
+        <mesh ref={meshRef} position={[0, 0, 0]}>
+          <boxGeometry args={[2, 2, 0.1]} />
+          <meshStandardMaterial
+            color="#ffffff"
+            roughness={0.1}
+            metalness={0.1}
+            transparent
+            opacity={0.9}
+          />
+        </mesh>
+      </Float>
+
+      {/* Дополнительные плавающие элементы */}
+      <Float speed={0.8} rotationIntensity={0.1} floatIntensity={0.2}>
+        <mesh position={[3, 1, -2]}>
+          <sphereGeometry args={[0.5, 16, 16]} />
+          <meshStandardMaterial
+            color="#f8fafc"
+            transparent
+            opacity={0.7}
+          />
+        </mesh>
+      </Float>
+
+      <Float speed={1.2} rotationIntensity={0.15} floatIntensity={0.25}>
+        <mesh position={[-2.5, -1, -1]}>
+          <cylinderGeometry args={[0.3, 0.3, 1.5, 8]} />
+          <meshStandardMaterial
+            color="#e4e4e7"
+            transparent
+            opacity={0.8}
+          />
+        </mesh>
+      </Float>
+    </>
   );
 };
 
 const Home = () => {
   const heroRef = useRef(null);
-  const titleRef = useRef(null);
-  const subtitleRef = useRef(null);
-  const ctaRef = useRef(null);
+  const featuresRef = useRef(null);
 
   useEffect(() => {
-    // Hero section animations
-    const tl = gsap.timeline({ delay: 0.5 });
-    
-    tl.fromTo(titleRef.current, 
-      { opacity: 0, y: 100 },
-      { opacity: 1, y: 0, duration: 1, ease: "power3.out" }
-    )
-    .fromTo(subtitleRef.current,
-      { opacity: 0, y: 50 },
-      { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" },
-      "-=0.5"
-    )
-    .fromTo(ctaRef.current,
-      { opacity: 0, scale: 0.8 },
-      { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.7)" },
-      "-=0.3"
-    );
+    // Простая анимация появления без GSAP
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
 
-    // Scroll-triggered animations
-    const sections = document.querySelectorAll('.scroll-animate');
-    sections.forEach((section, index) => {
-      gsap.fromTo(section,
-        { opacity: 0, y: 100 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 1,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: section,
-            start: "top 85%",
-            end: "bottom 15%",
-            toggleActions: "play none none reverse"
-          }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
         }
-      );
+      });
+    }, observerOptions);
+
+    const elements = document.querySelectorAll('.scroll-reveal');
+    elements.forEach((el) => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(30px)';
+      el.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+      observer.observe(el);
     });
 
-    return () => {
-      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-    };
+    return () => observer.disconnect();
   }, []);
 
-  const features = [
-    {
-      icon: "🎨",
-      title: "3D Дизайн",
-      description: "Создаю интерактивные 3D интерфейсы и визуализации"
-    },
-    {
-      icon: "💻",
-      title: "Веб-разработка",
-      description: "Современные веб-приложения с использованием React и Three.js"
-    },
-    {
-      icon: "📱",
-      title: "Мобильная адаптация",
-      description: "Респонсивный дизайн для всех устройств"
-    },
-    {
-      icon: "⚡",
-      title: "Производительность",
-      description: "Оптимизация и высокая скорость загрузки"
-    }
-  ];
-
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white">
+      
       {/* Hero Section */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        
         {/* 3D Background */}
         <div className="absolute inset-0 z-0">
-          <HeroScene />
+          <Canvas
+            camera={{ position: [0, 0, 5], fov: 50 }}
+            style={{ background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)' }}
+          >
+            <ambientLight intensity={0.8} />
+            <directionalLight position={[10, 10, 5]} intensity={0.5} />
+            <pointLight position={[-10, -10, -5]} intensity={0.3} color="#f1f5f9" />
+            
+            <HeroScene3D />
+            
+            <OrbitControls 
+              enableZoom={false} 
+              autoRotate 
+              autoRotateSpeed={0.5}
+              enablePan={false}
+              maxPolarAngle={Math.PI / 1.8}
+              minPolarAngle={Math.PI / 3}
+            />
+          </Canvas>
         </div>
         
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900/70 via-gray-900/50 to-gray-900/70 z-10" />
-        
         {/* Hero Content */}
-        <div className="relative z-20 text-center px-4 max-w-4xl mx-auto">
-          <motion.h1 
-            ref={titleRef}
-            className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary-400 via-accent-500 to-primary-600 bg-clip-text text-transparent"
+        <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
           >
-            3D Portfolio
-          </motion.h1>
-          
-          <motion.p 
-            ref={subtitleRef}
-            className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed"
-          >
-            Создаю интерактивные веб-приложения и 3D визуализации, 
-            которые оживляют идеи и впечатляют пользователей
-          </motion.p>
-          
-          <motion.div 
-            ref={ctaRef}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-          >
-            <Link
-              to="/portfolio"
-              className="bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-            >
-              Посмотреть работы
-            </Link>
-            <Link
-              to="/about"
-              className="border-2 border-primary-500 text-primary-400 hover:bg-primary-500 hover:text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300"
-            >
-              Обо мне
-            </Link>
+            <h1 className="text-6xl lg:text-8xl font-light text-neutral-900 tracking-tight mb-8 leading-none">
+              CREATIVE
+              <br />
+              <span className="text-neutral-600">PORTFOLIO</span>
+            </h1>
+            
+            <p className="text-xl lg:text-2xl text-neutral-600 mb-12 leading-relaxed max-w-2xl mx-auto">
+              Interactive 3D experiences and modern web applications that push the boundaries of digital design.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to="/portfolio"
+                className="catalog-button-unveil catalog-button-primary text-lg px-8 py-4"
+              >
+                VIEW PROJECTS
+              </Link>
+              <Link
+                to="/about"
+                className="catalog-button-unveil text-lg px-8 py-4"
+              >
+                LEARN MORE
+              </Link>
+            </div>
           </motion.div>
         </div>
 
-        {/* Scroll Indicator */}
+        {/* Scroll indicator */}
         <motion.div 
-          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20"
+          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10"
           animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         >
-          <div className="w-6 h-10 border-2 border-primary-500 rounded-full flex justify-center">
-            <div className="w-1 h-3 bg-primary-500 rounded-full mt-2"></div>
+          <div className="flex flex-col items-center text-neutral-400">
+            <span className="text-sm tracking-wide mb-2">SCROLL</span>
+            <div className="w-px h-8 bg-neutral-300"></div>
           </div>
         </motion.div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-gray-800/50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16 scroll-animate">
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Что я делаю
+      <section className="py-24 px-6 lg:px-8 bg-white" ref={featuresRef}>
+        <div className="max-w-7xl mx-auto">
+          
+          {/* Section Header */}
+          <div className="text-center mb-20 scroll-reveal">
+            <h2 className="text-4xl lg:text-5xl font-light text-neutral-900 tracking-tight mb-6">
+              WHAT I DO
             </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-              Специализируюсь на создании современных интерактивных решений
+            <p className="text-xl text-neutral-600 max-w-2xl mx-auto leading-relaxed">
+              Specializing in modern web technologies and immersive digital experiences
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
+          {/* Features Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                title: "3D DEVELOPMENT",
+                description: "Interactive 3D interfaces and visualizations using Three.js and WebGL",
+                icon: "🎨"
+              },
+              {
+                title: "WEB APPLICATIONS",
+                description: "Modern web apps built with React, Next.js, and cutting-edge technologies",
+                icon: "💻"
+              },
+              {
+                title: "RESPONSIVE DESIGN",
+                description: "Mobile-first design approach ensuring perfect experience across all devices",
+                icon: "📱"
+              },
+              {
+                title: "PERFORMANCE",
+                description: "Optimized loading times and smooth animations for exceptional user experience",
+                icon: "⚡"
+              },
+              {
+                title: "UI/UX DESIGN",
+                description: "Clean, intuitive interfaces that prioritize user experience and accessibility",
+                icon: "✨"
+              },
+              {
+                title: "INNOVATION",
+                description: "Exploring new technologies and pushing the boundaries of web development",
+                icon: "🚀"
+              }
+            ].map((feature, index) => (
               <motion.div
-                key={index}
-                className="scroll-animate bg-gray-900/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700 hover:border-primary-500 transition-all duration-300 hover:transform hover:scale-105"
-                whileHover={{ y: -5 }}
+                key={feature.title}
+                className="card-unveil p-8 hover:shadow-card-hover transition-all duration-300 scroll-reveal"
+                style={{ transitionDelay: `${index * 100}ms` }}
               >
-                <div className="text-4xl mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-semibold text-white mb-3">
+                <div className="text-4xl mb-6">{feature.icon}</div>
+                <h3 className="text-xl font-semibold text-neutral-900 mb-4 tracking-wide">
                   {feature.title}
                 </h3>
-                <p className="text-gray-400">
+                <p className="text-neutral-600 leading-relaxed">
                   {feature.description}
                 </p>
               </motion.div>
@@ -199,29 +225,35 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Skills Section */}
-      <section className="py-20 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16 scroll-animate">
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Технологии
+      {/* Technologies Section */}
+      <section className="py-24 px-6 lg:px-8 bg-neutral-50">
+        <div className="max-w-7xl mx-auto">
+          
+          <div className="text-center mb-20 scroll-reveal">
+            <h2 className="text-4xl lg:text-5xl font-light text-neutral-900 tracking-tight mb-6">
+              TECHNOLOGIES
             </h2>
-            <p className="text-xl text-gray-400">
-              Современный стек для создания впечатляющих проектов
+            <p className="text-xl text-neutral-600">
+              Modern stack for exceptional digital experiences
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 scroll-animate">
-            {['React', 'Three.js', 'GSAP', 'Node.js', 'Docker', 'Tailwind'].map((tech, index) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 scroll-reveal">
+            {[
+              'React',
+              'Three.js', 
+              'Next.js',
+              'TypeScript',
+              'Node.js',
+              'WebGL'
+            ].map((tech, index) => (
               <motion.div
                 key={tech}
-                className="bg-gray-900/30 backdrop-blur-sm p-6 rounded-xl border border-gray-700 text-center hover:border-primary-500 transition-all duration-300"
-                whileHover={{ scale: 1.1 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                className="text-center p-6 bg-white rounded-xl hover:shadow-card transition-all duration-300"
+                whileHover={{ scale: 1.05, y: -5 }}
+                style={{ transitionDelay: `${index * 50}ms` }}
               >
-                <div className="text-2xl font-bold text-primary-400 mb-2">
+                <div className="text-2xl font-semibold text-neutral-900 tracking-wide">
                   {tech}
                 </div>
               </motion.div>
@@ -231,20 +263,44 @@ const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-primary-900/20 to-accent-900/20">
-        <div className="max-w-4xl mx-auto text-center scroll-animate">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Готовы создать что-то потрясающее?
+      <section className="py-24 px-6 lg:px-8 bg-white">
+        <div className="max-w-4xl mx-auto text-center scroll-reveal">
+          <h2 className="text-4xl lg:text-5xl font-light text-neutral-900 tracking-tight mb-8">
+            READY TO CREATE
+            <br />
+            <span className="text-neutral-600">SOMETHING AMAZING?</span>
           </h2>
-          <p className="text-xl text-gray-300 mb-8">
-            Свяжитесь со мной, чтобы обсудить ваш проект
+          <p className="text-xl text-neutral-600 mb-12 leading-relaxed">
+            Let's discuss your project and bring your ideas to life
           </p>
           <Link
             to="/contact"
-            className="inline-block bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+            className="catalog-button-unveil catalog-button-primary text-lg px-8 py-4"
           >
-            Связаться со мной
+            GET IN TOUCH
           </Link>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-16 px-6 lg:px-8 bg-neutral-50">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center scroll-reveal">
+            {[
+              { number: "50+", label: "PROJECTS COMPLETED" },
+              { number: "3+", label: "YEARS EXPERIENCE" },
+              { number: "100%", label: "CLIENT SATISFACTION" }
+            ].map((stat, index) => (
+              <div key={stat.label} className="p-6">
+                <div className="text-4xl lg:text-5xl font-light text-neutral-900 mb-2">
+                  {stat.number}
+                </div>
+                <div className="text-sm text-neutral-600 tracking-wide">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </div>

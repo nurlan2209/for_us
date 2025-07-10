@@ -1,69 +1,110 @@
-// frontend/src/components/3d/ProjectCard3D.js
-import React, { useRef, useState, useEffect } from 'react';
+// frontend/src/components/3d/ProjectCard3D.js - В стиле unveil.fr
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useTexture, Float } from '@react-three/drei';
+import { useTexture, Float, Text } from '@react-three/drei';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 
-// Функция для определения яркости цвета изображения
-const getImageBrightness = (imageUrl) => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        ctx.drawImage(img, 0, 0);
-        
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        let brightness = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          brightness += (r * 0.299 + g * 0.587 + b * 0.114);
-        }
-        
-        brightness = brightness / (data.length / 4);
-        resolve(brightness > 128 ? 'dark' : 'light');
-      } catch (error) {
-        resolve('light');
+// Функция для определения яркости изображения
+const getImageBrightness = (() => {
+  const cache = new Map();
+  
+  return (imageUrl) => {
+    if (cache.has(imageUrl)) {
+      return Promise.resolve(cache.get(imageUrl));
+    }
+    
+    return new Promise((resolve) => {
+      if (!imageUrl || imageUrl.includes('placeholder')) {
+        const result = 'light';
+        cache.set(imageUrl, result);
+        resolve(result);
+        return;
       }
-    };
-    img.onerror = () => resolve('light');
-    img.src = imageUrl;
-  });
-};
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      const timeoutId = setTimeout(() => {
+        const result = 'light';
+        cache.set(imageUrl, result);
+        resolve(result);
+      }, 800);
+      
+      img.onload = () => {
+        clearTimeout(timeoutId);
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = 50;
+          canvas.height = 50;
+          
+          ctx.drawImage(img, 0, 0, 50, 50);
+          
+          const imageData = ctx.getImageData(0, 0, 50, 50);
+          const data = imageData.data;
+          
+          let brightness = 0;
+          for (let i = 0; i < data.length; i += 16) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            brightness += (r * 0.299 + g * 0.587 + b * 0.114);
+          }
+          
+          brightness = brightness / (data.length / 16);
+          const result = brightness > 128 ? 'dark' : 'light';
+          cache.set(imageUrl, result);
+          resolve(result);
+        } catch (error) {
+          const result = 'light';
+          cache.set(imageUrl, result);
+          resolve(result);
+        }
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeoutId);
+        const result = 'light';
+        cache.set(imageUrl, result);
+        resolve(result);
+      };
+      
+      img.src = imageUrl;
+    });
+  };
+})();
 
-const ProjectCard3D = ({ 
+// Главный компонент карточки проекта в стиле unveil.fr
+const ProjectCard3D = React.memo(({ 
   project, 
   position = [0, 0, 0], 
+  index = 0,
   onClick,
-  isHovered,
-  onHover 
+  onHover,
+  isActive = false,
+  isSelected = false
 }) => {
   const meshRef = useRef();
-  const cardRef = useRef();
-  const hoverAreaRef = useRef();
+  const groupRef = useRef();
+  const frameRef = useRef();
+  const shadowRef = useRef();
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
   const [textColor, setTextColor] = useState('light');
 
-  // Load project image texture with error handling
-  const texture = useTexture(
-    project.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDYwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjMzc0MTUxIi8+Cjx0ZXh0IHg9IjMwMCIgeT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOWNhM2FmIiBmb250LXNpemU9IjI0Ij5Qcm9qZWN0IEltYWdlPC90ZXh0Pgo8L3N2Zz4K',
-    (texture) => {
-      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.minFilter = THREE.LinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-    }
-  );
+  // Мемоизируем URL текстуры
+  const textureUrl = useMemo(() => 
+    project.imageUrl || '/api/placeholder/800/600'
+  , [project.imageUrl]);
+
+  // Загружаем текстуру проекта
+  const texture = useTexture(textureUrl, (texture) => {
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+  });
 
   // Определяем цвет текста на основе изображения
   useEffect(() => {
@@ -72,32 +113,61 @@ const ProjectCard3D = ({
     }
   }, [project.imageUrl]);
 
-  // Animation frame
+  // Плавная анимация в стиле unveil.fr
   useFrame((state) => {
-    if (meshRef.current) {
-      // Gentle floating animation
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime + position[0]) * 0.1;
+    if (!groupRef.current) return;
+    
+    const time = state.clock.elapsedTime;
+    const floatY = Math.sin(time * 0.4 + index * 0.6) * 0.03;
+    const floatX = Math.cos(time * 0.3 + index * 0.4) * 0.02;
+    
+    // Основные позиции
+    const targetY = position[1] + floatY;
+    const targetX = position[0] + floatX;
+    
+    // Активное состояние
+    if (isActive || isSelected) {
+      const lift = isSelected ? 0.8 : 0.4;
+      const scale = isSelected ? 1.15 : 1.08;
       
-      // Hover rotation effect
-      if (hovered) {
-        meshRef.current.rotation.y = THREE.MathUtils.lerp(
-          meshRef.current.rotation.y, 
-          Math.sin(state.clock.elapsedTime * 2) * 0.1, 
-          0.1
-        );
-        meshRef.current.scale.setScalar(
-          THREE.MathUtils.lerp(meshRef.current.scale.x, 1.1, 0.1)
-        );
-      } else {
-        meshRef.current.rotation.y = THREE.MathUtils.lerp(
-          meshRef.current.rotation.y, 
-          0, 
-          0.1
-        );
-        meshRef.current.scale.setScalar(
-          THREE.MathUtils.lerp(meshRef.current.scale.x, 1, 0.1)
-        );
-      }
+      groupRef.current.position.y += (targetY + lift - groupRef.current.position.y) * 0.08;
+      groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.08;
+      groupRef.current.scale.setScalar(
+        groupRef.current.scale.x + (scale - groupRef.current.scale.x) * 0.08
+      );
+      
+      // Легкое покачивание
+      groupRef.current.rotation.z = Math.sin(time * 0.8) * 0.005;
+      groupRef.current.rotation.x = Math.cos(time * 0.6) * 0.01;
+      
+    } else if (hovered) {
+      groupRef.current.position.y += (targetY + 0.15 - groupRef.current.position.y) * 0.1;
+      groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.1;
+      groupRef.current.scale.setScalar(
+        groupRef.current.scale.x + (1.05 - groupRef.current.scale.x) * 0.1
+      );
+      
+    } else {
+      // Обычное состояние
+      groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.06;
+      groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.06;
+      groupRef.current.scale.setScalar(
+        groupRef.current.scale.x + (1 - groupRef.current.scale.x) * 0.06
+      );
+      groupRef.current.rotation.z += (0 - groupRef.current.rotation.z) * 0.1;
+      groupRef.current.rotation.x += (0 - groupRef.current.rotation.x) * 0.1;
+    }
+
+    // Обновление тени
+    if (shadowRef.current) {
+      const shadowOpacity = (isActive || isSelected) ? 0.25 : hovered ? 0.15 : 0.08;
+      shadowRef.current.material.opacity += (shadowOpacity - shadowRef.current.material.opacity) * 0.1;
+    }
+
+    // Обновление рамки
+    if (frameRef.current) {
+      const frameColor = (isActive || isSelected) ? '#000000' : hovered ? '#18181b' : '#e4e4e7';
+      frameRef.current.material.color.lerp(new THREE.Color(frameColor), 0.1);
     }
   });
 
@@ -115,7 +185,7 @@ const ProjectCard3D = ({
     setHovered(true);
     onHover && onHover(project, true);
     
-    // Обновляем курсор через глобальную функцию
+    // Обновляем курсор
     if (window.updateProjectCursor) {
       window.updateProjectCursor({
         show: true,
@@ -140,92 +210,146 @@ const ProjectCard3D = ({
     document.body.style.cursor = 'auto';
   };
 
-  const handlePointerMove = (event) => {
-    event.stopPropagation();
-    // Принудительно поддерживаем hover состояние при движении мыши
-    if (!hovered) {
-      setHovered(true);
-      onHover && onHover(project, true);
-      
-      if (window.updateProjectCursor) {
-        window.updateProjectCursor({
-          show: true,
-          title: project.title,
-          textColor: textColor
-        });
-      }
-      
-      document.body.style.cursor = 'none';
-    }
-  };
-
   return (
-    <Float speed={2} rotationIntensity={0.3} floatIntensity={0.2}>
-      <group ref={meshRef} position={position}>
+    <Float speed={0.8} rotationIntensity={0.1} floatIntensity={0.05} enabled={!isActive && !isSelected}>
+      <group ref={groupRef} position={position}>
         
-        {/* БОЛЬШАЯ невидимая область для стабильного hover */}
+        {/* Невидимая область для взаимодействия */}
         <mesh
-          ref={hoverAreaRef}
-          position={[0, -0.3, 0]}
+          position={[0, 0, 0.1]}
           onClick={handleClick}
           onPointerEnter={handlePointerEnter}
           onPointerLeave={handlePointerLeave}
-          onPointerMove={handlePointerMove}
           visible={false}
         >
-          <boxGeometry args={[4.5, 3.5, 2]} />
+          <boxGeometry args={[4.5, 6, 0.8]} />
           <meshBasicMaterial transparent opacity={0} />
         </mesh>
 
-        {/* Main card - БЕЗ ВСЕХ Html элементов */}
-        <mesh ref={cardRef}>
-          <boxGeometry args={[2.5, 1.8, 0.1]} />
-          <meshStandardMaterial
-            map={texture}
+        {/* Тень карточки */}
+        <mesh 
+          ref={shadowRef}
+          position={[0.05, -0.05, -0.15]} 
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[4.2, 5.8]} />
+          <meshBasicMaterial
+            color="#000000"
             transparent
-            opacity={hovered ? 0.95 : 0.85}
-            roughness={0.1}
-            metalness={0.2}
+            opacity={0.08}
           />
         </mesh>
 
-        {/* Featured badge - ТОЛЬКО 3D геометрия, БЕЗ Html */}
+        {/* Основная карточка */}
+        <mesh ref={meshRef} position={[0, 0, 0]}>
+          <boxGeometry args={[4, 5.6, 0.08]} />
+          <meshStandardMaterial
+            map={texture}
+            transparent
+            opacity={isActive || isSelected ? 1 : hovered ? 0.98 : 0.92}
+            roughness={0.1}
+            metalness={0.02}
+          />
+        </mesh>
+
+        {/* Рамка карточки */}
+        <mesh ref={frameRef} position={[0, 0, -0.05]}>
+          <boxGeometry args={[4.15, 5.75, 0.04]} />
+          <meshStandardMaterial
+            color="#e4e4e7"
+            transparent
+            opacity={0.9}
+            roughness={0.3}
+            metalness={0.1}
+          />
+        </mesh>
+
+        {/* Подложка для глубины */}
+        <mesh position={[0, 0, -0.1]}>
+          <boxGeometry args={[4.3, 5.9, 0.02]} />
+          <meshStandardMaterial
+            color="#f8fafc"
+            transparent
+            opacity={0.6}
+          />
+        </mesh>
+
+        {/* Статус избранного проекта */}
         {project.featured && (
-          <mesh position={[1.1, 0.7, 0.15]}>
-            <cylinderGeometry args={[0.15, 0.15, 0.05, 6]} />
+          <mesh position={[1.7, 2.5, 0.15]}>
+            <cylinderGeometry args={[0.12, 0.12, 0.05, 8]} />
             <meshStandardMaterial
-              color="#fbbf24"
-              emissive="#fbbf24"
-              emissiveIntensity={0.4}
+              color="#0066ff"
+              emissive="#0066ff"
+              emissiveIntensity={0.3}
+              roughness={0.2}
+              metalness={0.8}
             />
           </mesh>
+        )}
+
+        {/* Индикатор активности */}
+        {(isActive || isSelected) && (
+          <mesh position={[0, -3.2, 0.1]}>
+            <boxGeometry args={[0.8, 0.03, 0.03]} />
+            <meshStandardMaterial
+              color="#0066ff"
+              emissive="#0066ff"
+              emissiveIntensity={0.5}
+            />
+          </mesh>
+        )}
+
+        {/* Текстовая информация (опционально) */}
+        {(isActive || isSelected) && (
+          <Text
+            position={[0, -3.8, 0.2]}
+            fontSize={0.2}
+            color="#18181b"
+            anchorX="center"
+            anchorY="middle"
+            font="/fonts/inter-medium.woff"
+            maxWidth={3.5}
+            textAlign="center"
+          >
+            {project.title}
+          </Text>
         )}
       </group>
     </Float>
   );
-};
+});
 
+// Компонент сетки проектов в стиле unveil.fr
 export const ProjectGrid3D = ({ projects = [], onProjectClick }) => {
   const groupRef = useRef();
   const [hoveredProject, setHoveredProject] = useState(null);
+  const [activeProject, setActiveProject] = useState(0);
 
+  // Расположение в сетке
   const getGridPosition = (index) => {
-    const cols = 3;
-    const spacing = 4.5;
+    const cols = 4;
+    const rows = Math.ceil(projects.length / cols);
     
     const col = index % cols;
     const row = Math.floor(index / cols);
     
-    const x = (col - (cols - 1) / 2) * spacing;
-    const y = ((Math.ceil(projects.length / cols) - 1) / 2 - row) * spacing * 0.9;
-    const z = Math.random() * 0.2 - 0.1;
+    const spacingX = 5.5;
+    const spacingY = 6.5;
+    
+    const x = (col - (cols - 1) / 2) * spacingX;
+    const y = ((rows - 1) / 2 - row) * spacingY;
+    const z = Math.random() * 0.1 - 0.05;
     
     return [x, y, z];
   };
 
+  // Плавная анимация группы
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.1) * 0.02;
+      const time = state.clock.elapsedTime;
+      groupRef.current.rotation.y = Math.sin(time * 0.1) * 0.01;
+      groupRef.current.position.y = Math.sin(time * 0.2) * 0.05;
     }
   });
 
@@ -236,10 +360,14 @@ export const ProjectGrid3D = ({ projects = [], onProjectClick }) => {
           key={project.id}
           project={project}
           position={getGridPosition(index)}
+          index={index}
+          isActive={index === activeProject}
           onClick={onProjectClick}
-          isHovered={hoveredProject?.id === project.id}
           onHover={(project, isHovered) => {
             setHoveredProject(isHovered ? project : null);
+            if (isHovered) {
+              setActiveProject(index);
+            }
           }}
         />
       ))}
@@ -247,39 +375,97 @@ export const ProjectGrid3D = ({ projects = [], onProjectClick }) => {
   );
 };
 
-export const ProjectCarousel3D = ({ projects = [], currentIndex = 0 }) => {
+// Компонент карусели проектов в стиле unveil.fr
+export const ProjectCarousel3D = ({ projects = [], currentIndex = 0, onProjectClick }) => {
   const groupRef = useRef();
 
-  useFrame((state) => {
-    if (groupRef.current) {
+  // Круговое расположение
+  const getCarouselPosition = (index, total) => {
+    const radius = 6;
+    const angleStep = (Math.PI * 2) / Math.max(total, 1);
+    const angle = index * angleStep;
+    
+    const x = Math.sin(angle) * radius;
+    const z = Math.cos(angle) * radius;
+    const y = Math.sin(index * 0.3) * 0.2;
+    
+    return [x, y, z];
+  };
+
+  // Вращение к текущему проекту
+  useFrame(() => {
+    if (groupRef.current && projects.length > 0) {
       const targetRotation = (currentIndex * Math.PI * 2) / projects.length;
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(
-        groupRef.current.rotation.y,
-        -targetRotation,
-        0.05
-      );
+      groupRef.current.rotation.y += (targetRotation - groupRef.current.rotation.y) * 0.05;
     }
   });
 
-  const radius = 4;
-
   return (
     <group ref={groupRef}>
-      {projects.map((project, index) => {
-        const angle = (index * Math.PI * 2) / projects.length;
-        const x = Math.sin(angle) * radius;
-        const z = Math.cos(angle) * radius;
-        
-        return (
-          <ProjectCard3D
-            key={project.id}
-            project={project}
-            position={[x, 0, z]}
-          />
-        );
-      })}
+      {projects.map((project, index) => (
+        <ProjectCard3D
+          key={project.id}
+          project={project}
+          position={getCarouselPosition(index, projects.length)}
+          index={index}
+          isSelected={index === currentIndex}
+          onClick={onProjectClick}
+        />
+      ))}
     </group>
   );
 };
 
+// Компонент спирального расположения в стиле unveil.fr
+export const ProjectSpiral3D = ({ projects = [], activeIndex = 0, onProjectClick }) => {
+  const groupRef = useRef();
+
+  // Спиральное расположение
+  const getSpiralPosition = (index, total) => {
+    const baseRadius = 4;
+    const heightStep = 1.2;
+    const angleStep = (Math.PI * 1.5) / Math.max(total, 1);
+    
+    const angle = index * angleStep;
+    const radius = baseRadius + (index * 0.2);
+    const height = index * heightStep - (total * heightStep) / 2;
+    
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const y = height;
+    
+    return [x, y, z];
+  };
+
+  // Автоматическое вращение для лучшего обзора
+  useFrame((state) => {
+    if (groupRef.current) {
+      const time = state.clock.elapsedTime;
+      
+      // Медленное вращение
+      groupRef.current.rotation.y = time * 0.1;
+      
+      // Фокус на активном проекте
+      const targetY = -activeIndex * 1.2;
+      groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.03;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      {projects.map((project, index) => (
+        <ProjectCard3D
+          key={project.id}
+          project={project}
+          position={getSpiralPosition(index, projects.length)}
+          index={index}
+          isActive={index === activeIndex}
+          onClick={onProjectClick}
+        />
+      ))}
+    </group>
+  );
+};
+
+// Основной экспорт
 export default ProjectCard3D;

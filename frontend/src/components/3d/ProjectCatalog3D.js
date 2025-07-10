@@ -1,141 +1,59 @@
-// frontend/src/components/3d/ProjectCatalog3D.js
+// frontend/src/components/3d/ProjectCatalog3D.js - Минимальная версия БЕЗ белых плиток
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 
-// Мемоизированная функция для определения яркости
-const getImageBrightness = (() => {
-  const cache = new Map();
-  
-  return (imageUrl) => {
-    if (cache.has(imageUrl)) {
-      return Promise.resolve(cache.get(imageUrl));
-    }
-    
-    return new Promise((resolve) => {
-      if (!imageUrl || imageUrl.includes('data:image/svg')) {
-        const result = 'light';
-        cache.set(imageUrl, result);
-        resolve(result);
-        return;
-      }
-      
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      const timeoutId = setTimeout(() => {
-        const result = 'light';
-        cache.set(imageUrl, result);
-        resolve(result);
-      }, 1000); // Таймаут 1 секунда
-      
-      img.onload = () => {
-        clearTimeout(timeoutId);
-        try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = 100; // Уменьшаем размер для быстрого анализа
-          canvas.height = 100;
-          
-          ctx.drawImage(img, 0, 0, 100, 100);
-          
-          const imageData = ctx.getImageData(0, 0, 100, 100);
-          const data = imageData.data;
-          
-          let brightness = 0;
-          const sampleStep = 4; // Анализируем каждый 4-й пиксель
-          
-          for (let i = 0; i < data.length; i += 4 * sampleStep) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            brightness += (r * 0.299 + g * 0.587 + b * 0.114);
-          }
-          
-          brightness = brightness / (data.length / (4 * sampleStep));
-          const result = brightness > 128 ? 'dark' : 'light';
-          cache.set(imageUrl, result);
-          resolve(result);
-        } catch (error) {
-          const result = 'light';
-          cache.set(imageUrl, result);
-          resolve(result);
-        }
-      };
-      
-      img.onerror = () => {
-        clearTimeout(timeoutId);
-        const result = 'light';
-        cache.set(imageUrl, result);
-        resolve(result);
-      };
-      
-      img.src = imageUrl;
-    });
-  };
-})();
-
-// Мемоизированный компонент карточки
+// Минимальный компонент карточки - ТОЛЬКО изображение
 const ProjectCatalogCard = React.memo(({ 
   project, 
   position = [0, 0, 0], 
   index = 0,
   onClick,
   onHover,
-  isSelected = false
+  hoveredProject = null
 }) => {
   const meshRef = useRef();
   const groupRef = useRef();
   const navigate = useNavigate();
-  const [hovered, setHovered] = useState(false);
-  const [textColor, setTextColor] = useState('light');
+  
+  // Проверяем, наведен ли именно этот проект
+  const isHovered = hoveredProject?.id === project.id;
 
-  // Мемоизируем URL текстуры
-  const textureUrl = useMemo(() => 
-    project.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDYwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjMzc0MTUxIi8+Cjx0ZXh0IHg9IjMwMCIgeT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOWNhM2FmIiBmb250LXNpemU9IjI0Ij5Qcm9qZWN0IEltYWdlPC90ZXh0Pgo8L3N2Zz4K'
-  , [project.imageUrl]);
+  // URL текстуры
+  const textureUrl = useMemo(() => {
+    return project.imageUrl || `data:image/svg+xml;base64,${btoa(`
+      <svg width="400" height="560" viewBox="0 0 400 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="400" height="560" fill="#f1f5f9"/>
+        <circle cx="200" cy="280" r="60" fill="#cbd5e1"/>
+        <text x="200" y="350" text-anchor="middle" fill="#64748b" font-family="system-ui" font-size="16" font-weight="500">${project.title}</text>
+      </svg>
+    `)}`;
+  }, [project.imageUrl, project.title]);
 
-  // Загружаем текстуру проекта
+  // Загружаем текстуру
   const texture = useTexture(textureUrl, (texture) => {
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
+    texture.flipY = false;
   });
 
-  // Определяем цвет текста на основе изображения - только один раз
-  useEffect(() => {
-    if (project.imageUrl) {
-      getImageBrightness(project.imageUrl).then(setTextColor);
-    }
-  }, [project.imageUrl]);
-
-  // Оптимизированная анимация - только базовые движения
+  // Простая анимация - только подъем при hover
   useFrame((state) => {
     if (!groupRef.current) return;
     
-    // Базовое плавание - менее частое обновление
     const time = state.clock.elapsedTime;
-    const floatY = Math.sin(time * 0.5 + index * 0.5) * 0.05;
+    const floatY = Math.sin(time * 0.5 + index * 0.8) * 0.03;
     
-    if (hovered || isSelected) {
-      // При наведении - плавные изменения
-      const targetY = position[1] + floatY + (isSelected ? 1.5 : 1.0);
-      const targetScale = isSelected ? 1.15 : 1.1;
-      
-      groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.05;
-      groupRef.current.scale.setScalar(
-        groupRef.current.scale.x + (targetScale - groupRef.current.scale.x) * 0.05
-      );
-    } else {
-      // Возврат в исходное положение
-      const targetY = position[1] + floatY;
-      groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.05;
-      groupRef.current.scale.setScalar(
-        groupRef.current.scale.x + (1 - groupRef.current.scale.x) * 0.05
-      );
-    }
+    const targetY = position[1] + floatY + (isHovered ? 0.8 : 0);
+    const targetScale = isHovered ? 1.08 : 1.0;
+    
+    groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.1;
+    groupRef.current.scale.setScalar(
+      groupRef.current.scale.x + (targetScale - groupRef.current.scale.x) * 0.1
+    );
   });
 
   const handleClick = (event) => {
@@ -149,15 +67,13 @@ const ProjectCatalogCard = React.memo(({
 
   const handlePointerEnter = (event) => {
     event.stopPropagation();
-    setHovered(true);
     onHover && onHover(project, true);
     
-    // Обновляем курсор
     if (window.updateProjectCursor) {
       window.updateProjectCursor({
         show: true,
         title: project.title,
-        textColor: textColor
+        textColor: 'light'
       });
     }
     
@@ -166,10 +82,8 @@ const ProjectCatalogCard = React.memo(({
 
   const handlePointerLeave = (event) => {
     event.stopPropagation();
-    setHovered(false);
     onHover && onHover(project, false);
     
-    // Скрываем курсор
     if (window.updateProjectCursor) {
       window.updateProjectCursor({ show: false });
     }
@@ -180,38 +94,37 @@ const ProjectCatalogCard = React.memo(({
   return (
     <group ref={groupRef} position={position}>
       
-      {/* Большая невидимая область для hover */}
+      {/* Невидимая область для клика */}
       <mesh
-        position={[0, 0, 0]}
+        position={[0, 0, 0.1]}
         onClick={handleClick}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         visible={false}
       >
-        <boxGeometry args={[4.5, 5.5, 0.5]} />
+        <planeGeometry args={[4.2, 5.8]} />
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
 
-      {/* Основная карточка проекта */}
+      {/* ТОЛЬКО изображение - плоская плоскость */}
       <mesh ref={meshRef} position={[0, 0, 0]}>
-        <boxGeometry args={[4, 5, 0.1]} />
-        <meshStandardMaterial
+        <planeGeometry args={[4, 5.6]} />
+        <meshBasicMaterial
           map={texture}
           transparent
-          opacity={hovered ? 1 : 0.9}
-          roughness={0.2}
-          metalness={0.1}
+          opacity={1}
+          side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Избранный проект - простая геометрия */}
+      {/* Маленький индикатор для избранных - только при необходимости */}
       {project.featured && (
-        <mesh position={[1.5, 2, 0.1]}>
-          <sphereGeometry args={[0.15, 8, 8]} />
-          <meshStandardMaterial
-            color="#fbbf24"
-            emissive="#fbbf24"
-            emissiveIntensity={0.3}
+        <mesh position={[1.8, 2.6, 0.05]}>
+          <circleGeometry args={[0.1, 8]} />
+          <meshBasicMaterial
+            color="#0066ff"
+            transparent
+            opacity={0.8}
           />
         </mesh>
       )}
@@ -223,55 +136,55 @@ const ProjectCatalogCard = React.memo(({
 export const ProjectCatalog3D = ({ projects = [], onProjectClick }) => {
   const groupRef = useRef();
   const [hoveredProject, setHoveredProject] = useState(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [scrollOffset, setScrollOffset] = useState(0);
 
-  // Мемоизируем позиции
-  const positions = useMemo(() => {
-    const spacing = 5.5;
-    return projects.map((_, index) => [
-      (index - currentIndex) * spacing,
-      index === currentIndex ? 0.3 : 0,
-      Math.sin(index * 0.1) * 0.1
-    ]);
-  }, [projects.length, currentIndex]);
+  // Расположение проектов
+  const getProjectPosition = (index) => {
+    const spacing = 5.0;
+    const x = (index * spacing) - scrollOffset;
+    const y = 0;
+    const z = Math.sin(index * 0.1) * 0.05;
+    
+    return [x, y, z];
+  };
 
-  // Оптимизированный обработчик скролла
+  // Обработчик скролла
   useEffect(() => {
-    let scrollTimeout;
     let isScrolling = false;
     
     const handleWheel = (event) => {
       event.preventDefault();
       
       if (isScrolling) return;
-      
-      clearTimeout(scrollTimeout);
       isScrolling = true;
       
-      scrollTimeout = setTimeout(() => {
-        if (event.deltaY > 0) {
-          setCurrentIndex(prev => Math.min(prev + 1, projects.length - 1));
-        } else {
-          setCurrentIndex(prev => Math.max(prev - 1, 0));
-        }
+      const scrollSpeed = 5.0;
+      
+      setTimeout(() => {
+        setScrollOffset(prev => {
+          const newOffset = prev + (event.deltaY > 0 ? scrollSpeed : -scrollSpeed);
+          const maxOffset = Math.max(0, (projects.length - 1) * scrollSpeed);
+          return Math.max(0, Math.min(newOffset, maxOffset));
+        });
         isScrolling = false;
-      }, 150);
+      }, 50);
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      window.removeEventListener('wheel', handleWheel);
-      clearTimeout(scrollTimeout);
-    };
+    return () => window.removeEventListener('wheel', handleWheel);
   }, [projects.length]);
 
-  // Плавная анимация группы - менее частые обновления
-  useFrame((state) => {
-    if (!groupRef.current) return;
-    
-    const targetX = -currentIndex * 5.5;
-    groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.05;
+  // Анимация группы
+  useFrame(() => {
+    if (groupRef.current) {
+      const targetX = -scrollOffset;
+      groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.1;
+    }
   });
+
+  const handleProjectHover = (project, isHovered) => {
+    setHoveredProject(isHovered ? project : null);
+  };
 
   return (
     <group ref={groupRef}>
@@ -280,12 +193,10 @@ export const ProjectCatalog3D = ({ projects = [], onProjectClick }) => {
           key={project.id}
           project={project}
           index={index}
-          position={positions[index]}
-          isSelected={index === currentIndex}
+          position={getProjectPosition(index)}
           onClick={onProjectClick}
-          onHover={(project, isHovered) => {
-            setHoveredProject(isHovered ? project : null);
-          }}
+          onHover={handleProjectHover}
+          hoveredProject={hoveredProject}
         />
       ))}
     </group>
