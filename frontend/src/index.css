@@ -39,6 +39,32 @@
   100% { transform: translateY(0); opacity: 1; }
 }
 
+/* Анимация для кастомного курсора */
+@keyframes cursor-glow {
+  0%, 100% { 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  50% { 
+    box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4);
+  }
+}
+
+/* Стили для кастомного курсора */
+.custom-cursor {
+  animation: cursor-glow 2s ease-in-out infinite;
+  transform: translate3d(0, 0, 0); /* Ускорение GPU */
+  will-change: transform;
+}
+
+/* Скрытие стандартного курсора для 3D сцены */
+.hide-cursor {
+  cursor: none !important;
+}
+
+.hide-cursor * {
+  cursor: none !important;
+}
+
 /* Line clamp utility */
 .line-clamp-2 {
   display: -webkit-box;
@@ -125,4 +151,60 @@ html {
   will-change: transform;
   transform: translateZ(0);
   backface-visibility: hidden;
+}
+
+/* Улучшенные стили для кастомного курсора проектов */
+.project-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  transition: all 0.15s ease-out;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.project-cursor.light-text {
+  background: rgba(0, 0, 0, 0.85);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.project-cursor.dark-text {
+  background: rgba(255, 255, 255, 0.9);
+  color: #000000;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+/* Анимация появления курсора */
+@keyframes cursor-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.project-cursor.show {
+  animation: cursor-appear 0.2s ease-out;
+}
+
+/* Стили для 3D сцены с кастомным курсором */
+.canvas-container {
+  cursor: none;
+}
+
+.canvas-container canvas {
+  cursor: none !important;
 }

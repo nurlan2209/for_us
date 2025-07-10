@@ -21,7 +21,7 @@ import AdminSettings from './pages/admin/AdminSettings';
 
 // Components
 import Navbar from './components/ui/Navbar';
-// УБРАЛИ Footer
+import ProjectCursor from './components/ui/ProjectCursor'; // ✅ Добавляем курсор
 import ScrollToTop from './components/ui/ScrollToTop';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
@@ -43,6 +43,9 @@ function App() {
                 <Router>
                     <div className="min-h-screen bg-gray-900 text-white">
                         <ScrollToTop />
+
+                        {/* ✅ Глобальный курсор для проектов */}
+                        <ProjectCursor />
 
                         <Routes>
                             {/* Public routes */}
@@ -122,7 +125,6 @@ function MainLayout({ children }) {
                     {children}
                 </React.Suspense>
             </main>
-            {/* УБРАЛИ <Footer /> */}
         </>
     );
 }

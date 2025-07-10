@@ -1,11 +1,45 @@
 // frontend/src/components/3d/ProjectCard3D.js
-import React, { useRef, useState, useMemo } from 'react';
-import { useFrame, useLoader } from '@react-three/fiber';
-import { Text, Html, useTexture, Float } from '@react-three/drei';
-import { TextureLoader } from 'three';
-import { motion } from 'framer-motion';
+import React, { useRef, useState, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { useTexture, Float } from '@react-three/drei';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
+
+// Функция для определения яркости цвета изображения
+const getImageBrightness = (imageUrl) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        ctx.drawImage(img, 0, 0);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        let brightness = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          brightness += (r * 0.299 + g * 0.587 + b * 0.114);
+        }
+        
+        brightness = brightness / (data.length / 4);
+        resolve(brightness > 128 ? 'dark' : 'light');
+      } catch (error) {
+        resolve('light');
+      }
+    };
+    img.onerror = () => resolve('light');
+    img.src = imageUrl;
+  });
+};
 
 const ProjectCard3D = ({ 
   project, 
@@ -19,6 +53,7 @@ const ProjectCard3D = ({
   const hoverAreaRef = useRef();
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
+  const [textColor, setTextColor] = useState('light');
 
   // Load project image texture with error handling
   const texture = useTexture(
@@ -29,6 +64,13 @@ const ProjectCard3D = ({
       texture.magFilter = THREE.LinearFilter;
     }
   );
+
+  // Определяем цвет текста на основе изображения
+  useEffect(() => {
+    if (project.imageUrl) {
+      getImageBrightness(project.imageUrl).then(setTextColor);
+    }
+  }, [project.imageUrl]);
 
   // Animation frame
   useFrame((state) => {
@@ -72,13 +114,29 @@ const ProjectCard3D = ({
     event.stopPropagation();
     setHovered(true);
     onHover && onHover(project, true);
-    document.body.style.cursor = 'pointer';
+    
+    // Обновляем курсор через глобальную функцию
+    if (window.updateProjectCursor) {
+      window.updateProjectCursor({
+        show: true,
+        title: project.title,
+        textColor: textColor
+      });
+    }
+    
+    document.body.style.cursor = 'none';
   };
 
   const handlePointerLeave = (event) => {
     event.stopPropagation();
     setHovered(false);
     onHover && onHover(project, false);
+    
+    // Скрываем курсор
+    if (window.updateProjectCursor) {
+      window.updateProjectCursor({ show: false });
+    }
+    
     document.body.style.cursor = 'auto';
   };
 
@@ -88,7 +146,16 @@ const ProjectCard3D = ({
     if (!hovered) {
       setHovered(true);
       onHover && onHover(project, true);
-      document.body.style.cursor = 'pointer';
+      
+      if (window.updateProjectCursor) {
+        window.updateProjectCursor({
+          show: true,
+          title: project.title,
+          textColor: textColor
+        });
+      }
+      
+      document.body.style.cursor = 'none';
     }
   };
 
@@ -110,7 +177,7 @@ const ProjectCard3D = ({
           <meshBasicMaterial transparent opacity={0} />
         </mesh>
 
-        {/* Main card */}
+        {/* Main card - БЕЗ ВСЕХ Html элементов */}
         <mesh ref={cardRef}>
           <boxGeometry args={[2.5, 1.8, 0.1]} />
           <meshStandardMaterial
@@ -122,81 +189,7 @@ const ProjectCard3D = ({
           />
         </mesh>
 
-        {/* УБИРАЕМ Card border/frame - больше нет синих рамок */}
-
-        {/* Всегда видимый заголовок с лучшим качеством */}
-        <Html
-          position={[0, -1.2, 0.1]}
-          center
-          distanceFactor={4}
-          transform={false}
-          occlude={false}
-          style={{ 
-            pointerEvents: 'none',
-            userSelect: 'none',
-            WebkitUserSelect: 'none'
-          }}
-        >
-          <div 
-            className="text-center pointer-events-none select-none"
-            style={{
-              background: 'rgba(17, 24, 39, 0.9)',
-              backdropFilter: 'blur(8px)',
-              borderRadius: '8px',
-              padding: '8px 16px',
-              border: hovered ? '1px solid rgba(14, 165, 233, 0.5)' : '1px solid rgba(55, 65, 81, 0.5)',
-              transition: 'all 0.3s ease',
-              transform: hovered ? 'scale(1.05)' : 'scale(1)',
-              boxShadow: hovered ? '0 8px 32px rgba(14, 165, 233, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.3)'
-            }}
-          >
-            <h3 
-              className={`font-bold transition-all duration-300 whitespace-nowrap ${
-                hovered ? 'text-blue-400 text-lg' : 'text-white text-base'
-              }`}
-              style={{
-                textShadow: hovered ? '0 0 8px rgba(14, 165, 233, 0.5)' : 'none',
-                fontFamily: 'Inter, system-ui, sans-serif'
-              }}
-            >
-              {project.title}
-            </h3>
-          </div>
-        </Html>
-
-        {/* Технологии с лучшим качеством */}
-        <Html
-          position={[0, -1.6, 0.1]}
-          center
-          distanceFactor={6}
-          transform={false}
-          occlude={false}
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
-        >
-          <div 
-            className="text-center pointer-events-none select-none"
-            style={{
-              background: 'rgba(31, 41, 55, 0.8)',
-              backdropFilter: 'blur(4px)',
-              borderRadius: '6px',
-              padding: '4px 12px',
-              transition: 'all 0.3s ease',
-              opacity: hovered ? 1 : 0.8
-            }}
-          >
-            <p 
-              className="text-gray-300 whitespace-nowrap"
-              style={{
-                fontSize: '12px',
-                fontFamily: 'Inter, system-ui, sans-serif'
-              }}
-            >
-              {project.technologies}
-            </p>
-          </div>
-        </Html>
-
-        {/* Featured badge */}
+        {/* Featured badge - ТОЛЬКО 3D геометрия, БЕЗ Html */}
         {project.featured && (
           <mesh position={[1.1, 0.7, 0.15]}>
             <cylinderGeometry args={[0.15, 0.15, 0.05, 6]} />
@@ -205,104 +198,7 @@ const ProjectCard3D = ({
               emissive="#fbbf24"
               emissiveIntensity={0.4}
             />
-            <Html
-              position={[0, 0, 0.03]}
-              center
-              distanceFactor={10}
-              style={{ pointerEvents: 'none' }}
-            >
-              <div 
-                className="pointer-events-none select-none"
-                style={{
-                  color: '#000',
-                  fontSize: '16px',
-                  fontWeight: 'bold'
-                }}
-              >
-                ⭐
-              </div>
-            </Html>
           </mesh>
-        )}
-
-        {/* КАЧЕСТВЕННАЯ hover панель */}
-        {hovered && (
-          <Html
-            position={[0, 0, 1.5]}
-            center
-            distanceFactor={3}
-            transform={false}
-            occlude={false}
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="pointer-events-none select-none"
-              style={{
-                background: 'rgba(17, 24, 39, 0.95)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(14, 165, 233, 0.5)',
-                borderRadius: '16px',
-                padding: '20px',
-                maxWidth: '280px',
-                boxShadow: '0 20px 60px rgba(14, 165, 233, 0.2), 0 8px 32px rgba(0, 0, 0, 0.3)',
-                fontFamily: 'Inter, system-ui, sans-serif'
-              }}
-            >
-              <h3 
-                className="text-white font-bold text-center mb-3"
-                style={{
-                  fontSize: '18px',
-                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)'
-                }}
-              >
-                {project.title}
-              </h3>
-              
-              <p 
-                className="text-gray-300 text-center mb-4 leading-relaxed"
-                style={{
-                  fontSize: '14px',
-                  lineHeight: '1.5'
-                }}
-              >
-                {project.description}
-              </p>
-              
-              <div className="flex flex-wrap gap-2 justify-center mb-4">
-                {project.technologies.split(',').slice(0, 3).map((tech, index) => (
-                  <span
-                    key={index}
-                    className="text-primary-200 font-medium"
-                    style={{
-                      background: 'rgba(14, 165, 233, 0.3)',
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      fontSize: '11px',
-                      border: '1px solid rgba(14, 165, 233, 0.4)'
-                    }}
-                  >
-                    {tech.trim()}
-                  </span>
-                ))}
-              </div>
-              
-              <div className="text-center">
-                <span 
-                  className="text-primary-400 font-medium"
-                  style={{
-                    fontSize: '14px',
-                    textShadow: '0 0 8px rgba(14, 165, 233, 0.5)'
-                  }}
-                >
-                  ✨ Нажмите для просмотра
-                </span>
-              </div>
-            </motion.div>
-          </Html>
         )}
       </group>
     </Float>
