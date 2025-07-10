@@ -1,14 +1,14 @@
 // backend/src/routes/auth.js
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const { z } = require('zod');
-const { getUserByUsername, getUserById } = require('../services/database');
-const { 
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+import { getUserByUsername, getUserById } from '../services/database.js';
+import { 
   generateToken, 
   generateRefreshToken, 
   verifyRefreshToken,
   verifyToken 
-} = require('../middleware/auth');
+} from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -193,11 +193,11 @@ router.get('/verify', verifyToken, (req, res) => {
   res.json({
     valid: true,
     user: {
-      id: req.user.id,
+      id: req.user.id,       
       username: req.user.username,
       role: req.user.role
     }
   });
 });
 
-module.exports = router;
+export default router;

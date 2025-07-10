@@ -1,6 +1,6 @@
 // backend/src/middleware/auth.js
-const jwt = require('jsonwebtoken');
-const { getUserById } = require('../services/database');
+import jwt from 'jsonwebtoken';
+import { getUserById } from '../services/database.js';
 
 /**
  * Verify JWT token middleware
@@ -142,7 +142,7 @@ function verifyRefreshToken(token) {
   }
 }
 
-module.exports = {
+export {
   verifyToken,
   requireAdmin,
   optionalAuth,

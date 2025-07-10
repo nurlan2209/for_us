@@ -1,15 +1,15 @@
 // backend/src/routes/projects.js
-const express = require('express');
-const { z } = require('zod');
-const { 
+import express from 'express';
+import { z } from 'zod';
+import { 
   getProjects, 
   getProjectById, 
   addProject, 
   updateProject, 
   deleteProject 
-} = require('../services/database');
-const { verifyToken, requireAdmin } = require('../middleware/auth');
-const { deleteFile } = require('../services/minio');
+} from '../services/database.js';
+import { verifyToken, requireAdmin } from '../middleware/auth.js';
+import { deleteFile } from '../services/minio.js';
 
 const router = express.Router();
 
@@ -303,4 +303,4 @@ router.get('/admin/all', verifyToken, requireAdmin, (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -302,22 +302,6 @@ const Portfolio = () => {
           </div>
         </div>
       </section>
-
-      {/* Traditional Grid View (Fallback) */}
-      {filteredProjects.length > 0 && (
-        <section className="py-20 px-4 bg-gray-900">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl font-bold text-white mb-12 text-center">
-              Традиционный вид
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredProjects.map((project, index) => (
-                <ProjectCard2D key={project.id} project={project} index={index} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
 };

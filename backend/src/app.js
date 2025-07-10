@@ -1,19 +1,21 @@
 // backend/src/app.js
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Import routes
-const authRoutes = require('./routes/auth');
-const projectRoutes = require('./routes/projects');
-const uploadRoutes = require('./routes/upload');
+import authRoutes from './routes/auth.js';
+import projectRoutes from './routes/projects.js';
+import uploadRoutes from './routes/upload.js';
 
 // Import services
-const { initializeDatabase } = require('./services/database');
-const { initializeMinio } = require('./services/minio');
+import { initializeDatabase } from './services/database.js';
+import { initializeMinio } from './services/minio.js';
 
 const app = express();
 const PORT = process.env.API_PORT || 8080;
@@ -142,8 +144,6 @@ process.on('SIGINT', () => {
 });
 
 // Start the server
-if (require.main === module) {
-  startServer();
-}
+startServer();
 
-module.exports = app;
+export default app;

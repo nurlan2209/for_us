@@ -1,9 +1,37 @@
 // backend/src/services/database.js
-const { Low } = require('lowdb');
-const { JSONFile } = require('lowdb/node');
-const path = require('path');
-const fs = require('fs').promises;
-const bcrypt = require('bcryptjs');
+import { Low } from 'lowdb';
+import path from 'path';
+import fs from 'fs/promises';
+import bcrypt from 'bcryptjs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Custom JSON File adapter for LowDB v3 + ES modules
+class JSONFileAdapter {
+  constructor(filename) {
+    this.filename = filename;
+  }
+  
+  async read() {
+    try {
+      const data = await fs.readFile(this.filename, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return null; // File doesn't exist
+      }
+      throw error;
+    }
+  }
+  
+  async write(data) {
+    const dir = path.dirname(this.filename);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(this.filename, JSON.stringify(data, null, 2), 'utf8');
+  }
+}
 
 // Database file path
 const DB_PATH = path.join(__dirname, '../../data/db.json');
@@ -32,20 +60,25 @@ let db = null;
  */
 async function initializeDatabase() {
   try {
+    console.log('🚀 Initializing database...');
+    
     // Ensure data directory exists
     const dataDir = path.dirname(DB_PATH);
     await fs.mkdir(dataDir, { recursive: true });
+    console.log('✅ Data directory created');
     
-    // Initialize LowDB
-    const adapter = new JSONFile(DB_PATH);
+    // Initialize LowDB with custom adapter
+    const adapter = new JSONFileAdapter(DB_PATH);
     db = new Low(adapter, defaultData);
     
     // Read the database
     await db.read();
+    console.log('✅ Database file read');
     
     // If database is empty, set default data
     if (!db.data) {
       db.data = defaultData;
+      console.log('✅ Default data set');
     }
     
     // Ensure all collections exist
@@ -59,11 +92,12 @@ async function initializeDatabase() {
     // Write to file
     await db.write();
     
-    console.log('Database initialized successfully');
+    console.log('✅ Database initialized successfully');
+    console.log(`📊 Users: ${db.data.users.length}, Projects: ${db.data.projects.length}`);
     return db;
     
   } catch (error) {
-    console.error('Error initializing database:', error);
+    console.error('❌ Error initializing database:', error);
     throw error;
   }
 }
@@ -79,6 +113,7 @@ async function createDefaultAdmin() {
   const existingAdmin = db.data.users.find(user => user.username === adminUsername);
   
   if (!existingAdmin) {
+    console.log('👤 Creating default admin user...');
     const hashedPassword = await bcrypt.hash(adminPassword, 12);
     
     const adminUser = {
@@ -91,7 +126,9 @@ async function createDefaultAdmin() {
     };
     
     db.data.users.push(adminUser);
-    console.log(`Default admin user created: ${adminUsername}`);
+    console.log(`✅ Default admin user created: ${adminUsername}`);
+  } else {
+    console.log(`👤 Admin user already exists: ${adminUsername}`);
   }
 }
 
@@ -216,7 +253,7 @@ async function updateSettings(newSettings) {
   return db.data.settings;
 }
 
-module.exports = {
+export {
   initializeDatabase,
   getDatabase,
   getUsers,

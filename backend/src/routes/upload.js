@@ -1,9 +1,9 @@
 // backend/src/routes/upload.js
-const express = require('express');
-const multer = require('multer');
-const mime = require('mime-types');
-const { verifyToken, requireAdmin } = require('../middleware/auth');
-const { uploadFile, deleteFile, getFileUrl } = require('../services/minio');
+import express from 'express';
+import multer from 'multer';
+import mime from 'mime-types';
+import { verifyToken, requireAdmin } from '../middleware/auth.js';
+import { uploadFile, deleteFile, getFileUrl } from '../services/minio.js';
 
 const router = express.Router();
 
@@ -260,4 +260,4 @@ router.use((error, req, res, next) => {
   next(error);
 });
 
-module.exports = router;
+export default router;

@@ -1,6 +1,6 @@
 // backend/src/services/minio.js
-const Minio = require('minio');
-const { v4: uuidv4 } = require('uuid');
+import * as Minio from 'minio';
+import { v4 as uuidv4 } from 'uuid';
 
 let minioClient = null;
 
@@ -9,6 +9,8 @@ let minioClient = null;
  */
 async function initializeMinio() {
   try {
+    console.log('🚀 Initializing MinIO...');
+    
     minioClient = new Minio.Client({
       endPoint: process.env.MINIO_ENDPOINT || 'localhost',
       port: parseInt(process.env.MINIO_PORT) || 9000,
@@ -23,7 +25,7 @@ async function initializeMinio() {
     const bucketExists = await minioClient.bucketExists(bucketName);
     if (!bucketExists) {
       await minioClient.makeBucket(bucketName, 'us-east-1');
-      console.log(`Bucket '${bucketName}' created successfully`);
+      console.log(`✅ Bucket '${bucketName}' created successfully`);
       
       // Set bucket policy for public read access to images
       const policy = {
@@ -38,15 +40,21 @@ async function initializeMinio() {
         ]
       };
       
-      await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
-      console.log('Bucket policy set for public image access');
+      try {
+        await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+        console.log('✅ Bucket policy set for public image access');
+      } catch (policyError) {
+        console.log('⚠️  Could not set bucket policy (not critical):', policyError.message);
+      }
+    } else {
+      console.log(`✅ Bucket '${bucketName}' already exists`);
     }
     
-    console.log('MinIO initialized successfully');
+    console.log('✅ MinIO initialized successfully');
     return minioClient;
     
   } catch (error) {
-    console.error('Error initializing MinIO:', error);
+    console.error('❌ Error initializing MinIO:', error);
     throw error;
   }
 }
@@ -83,8 +91,11 @@ async function uploadFile(file, folder = 'uploads') {
     // Upload file
     await client.putObject(bucketName, fileName, file.buffer, file.size, metaData);
     
-    // Generate file URL
-    const fileUrl = `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/${fileName}`;
+    // ✅ Генерируем правильный URL для браузера
+    const minioPublicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
+    const fileUrl = `${minioPublicUrl}/${bucketName}/${fileName}`;
+    
+    console.log('🔗 Generated file URL:', fileUrl);
     
     return {
       fileName,
@@ -128,7 +139,8 @@ async function getFileUrl(fileName, expiry = 24 * 60 * 60) {
     
     // For public files (images), return direct URL
     if (fileName.startsWith('images/')) {
-      return `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/${fileName}`;
+      const minioPublicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
+      return `${minioPublicUrl}/${bucketName}/${fileName}`;
     }
     
     // For private files, generate presigned URL
@@ -181,7 +193,7 @@ async function getFileStats(fileName) {
   }
 }
 
-module.exports = {
+export {
   initializeMinio,
   getMinioClient,
   uploadFile,

@@ -4,7 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { motion } from 'framer-motion';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Float, Text3D, Center } from '@react-three/drei';
+import { OrbitControls, Float, Center, Html } from '@react-three/drei'; // ✅ Добавили Html
 import { projectsAPI } from '../utils/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import gsap from 'gsap';
@@ -24,20 +24,12 @@ const Project3DShowcase = ({ project }) => {
 
       <Float speed={2} rotationIntensity={0.5} floatIntensity={0.3}>
         <Center>
-          <Text3D
-            ref={meshRef}
-            font="/fonts/helvetiker_regular.typeface.json"
-            size={0.5}
-            height={0.1}
-            curveSegments={12}
-          >
-            {project.title}
-            <meshStandardMaterial 
-              color="#0ea5e9" 
-              emissive="#0ea5e9"
-              emissiveIntensity={0.2}
-            />
-          </Text3D>
+          {/* ✅ Теперь Html импортирован и будет работать */}
+          <Html center>
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent pointer-events-none">
+              {project.title}
+            </h1>
+          </Html>
         </Center>
       </Float>
 
