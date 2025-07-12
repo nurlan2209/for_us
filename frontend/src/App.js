@@ -1,4 +1,4 @@
-// frontend/src/App.js - Обновленная версия в стиле unveil.fr
+// frontend/src/App.js - Обновленная версия без About
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
@@ -10,7 +10,6 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import Home from './pages/Home';
 import Portfolio from './pages/Portfolio';
 import ProjectDetail from './pages/ProjectDetail';
-import About from './pages/About';
 import Contact from './pages/Contact';
 
 // Admin pages
@@ -53,12 +52,10 @@ function App() {
 
             <Routes>
               {/* Public routes */}
-              <Route path="/" element={<MainLayout><Home /></MainLayout>} />
-              <Route path="/portfolio" element={<MainLayout><Portfolio /></MainLayout>} />
+              <Route path="/" element={<MainLayout><Portfolio /></MainLayout>} />
               <Route path="/portfolio/:id" element={<MainLayout><ProjectDetail /></MainLayout>} />
-              <Route path="/about" element={<MainLayout><About /></MainLayout>} />
+              <Route path="/studio" element={<MainLayout><StudioPage /></MainLayout>} />
               <Route path="/contact" element={<MainLayout><Contact /></MainLayout>} />
-              <Route path="/studio" element={<MainLayout><About /></MainLayout>} />
 
               {/* Admin routes */}
               <Route path="/admin/login" element={<AdminLogin />} />
@@ -173,6 +170,24 @@ function AdminLayout({ children }) {
       >
         {children}
       </React.Suspense>
+    </div>
+  );
+}
+
+// Placeholder Studio page (минималистичная как Contact)
+function StudioPage() {
+  return (
+    <div className="min-h-screen bg-white pt-24">
+      <div className="max-w-4xl mx-auto px-6 py-20">
+        <div className="text-center">
+          <h1 className="text-5xl lg:text-7xl font-light text-neutral-900 tracking-tight mb-8">
+            STUDIO
+          </h1>
+          <p className="text-lg text-neutral-600 leading-relaxed max-w-2xl mx-auto">
+            Creative studio information will be here.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

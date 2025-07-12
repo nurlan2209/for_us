@@ -22,15 +22,13 @@ const Navbar = () => {
   }, [location]);
 
   const navItems = [
-    { name: 'PROJECTS', path: '/portfolio' },
-    { name: 'RESEARCH', path: '/about' },
+    { name: 'PROJECTS', path: '/' },
     { name: 'STUDIO', path: '/studio' },
     { name: 'CONTACT', path: '/contact' },
   ];
 
   const isActivePath = (path) => {
-    if (path === '/portfolio' && location.pathname.startsWith('/portfolio')) return true;
-    if (path === '/about' && location.pathname.startsWith('/about')) return true;
+    if (path === '/' && (location.pathname === '/' || location.pathname.startsWith('/portfolio'))) return true;
     if (path === '/studio' && location.pathname.startsWith('/studio')) return true;
     if (path === '/contact' && location.pathname.startsWith('/contact')) return true;
     return false;
@@ -38,70 +36,36 @@ const Navbar = () => {
 
   return (
     <>
-      {/* Navigation */}
-      <nav 
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ease-out ${
-          scrolled 
-            ? 'bg-white/95 backdrop-blur-xl' 
-            : 'bg-transparent'
-        }`}
-      >
-        <div className="max-w-screen-2xl mx-auto">
+      {/* Navigation - Точно как на unveil.fr */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white">
+        <div className="px-4 pt-0.5 pl-1">
           
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex justify-between items-center px-8 py-6">
+          <div className="flex items-center h-16">
             
-            {/* Logo */}
-            <Link 
-              to="/" 
-              className="text-black font-medium text-sm tracking-[0.2em] hover:opacity-70 transition-opacity duration-300"
-            >
-              UNVEIL × PROJECTS
-            </Link>
-
-            {/* Center Navigation */}
-            <div className="flex items-center space-x-16">
-              {navItems.map((item) => (
-                <Link
+            {/* Navigation buttons */}
+            <div className="hidden lg:flex items-start gap-x-[2px]">
+              {navItems.map((item, index) => (
+                <button
                   key={item.path}
-                  to={item.path}
-                  className={`text-xs font-medium tracking-[0.15em] transition-all duration-300 relative group ${
+                  onClick={() => window.location.href = item.path}
+                  className={`flex items-end justify-start rounded-[0.375rem] px-2 py-2 pb-1 h-[59.02px] ${
+                    index === 0 ? 'w-[200px]' : 'w-[124.67px]'
+                  } text-[10px] font-medium tracking-wider transition-all duration-200 border border-gray-300 ${
                     isActivePath(item.path)
-                      ? 'text-black opacity-100'
-                      : 'text-neutral-400 hover:text-black hover:opacity-100'
+                      ? 'bg-[#f2f2f2] text-black'
+                      : 'bg-[#f2f2f2] text-[#c3c3c3] hover:text-black'
                   }`}
                 >
                   {item.name}
-                  
-                  {/* Active indicator */}
-                  {isActivePath(item.path) && (
-                    <motion.div
-                      layoutId="navbar-active"
-                      className="absolute -bottom-2 left-0 right-0 h-px bg-black"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                </Link>
+                </button>
               ))}
             </div>
 
-            {/* Right side - можно добавить доп элементы */}
-            <div className="w-32"> {/* Spacer для симметрии */}
-            </div>
-          </div>
-
-          {/* Mobile Navigation */}
-          <div className="lg:hidden flex justify-between items-center px-6 py-5">
-            <Link 
-              to="/" 
-              className="text-black font-medium text-sm tracking-[0.1em]"
-            >
-              UNVEIL
-            </Link>
-
+            {/* Mobile menu button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-black hover:opacity-70 transition-opacity duration-200"
+              className="lg:hidden text-black hover:opacity-70 transition-opacity duration-200"
               aria-label="Menu"
             >
               <motion.div
@@ -136,7 +100,7 @@ const Navbar = () => {
             className="fixed inset-0 z-40 lg:hidden"
           >
             <div className="bg-white h-full pt-20 px-6">
-              <div className="space-y-8">
+              <div className="space-y-4">
                 {navItems.map((item, index) => (
                   <motion.div
                     key={item.path}
@@ -146,10 +110,10 @@ const Navbar = () => {
                   >
                     <Link
                       to={item.path}
-                      className={`block text-2xl font-light tracking-wide transition-colors duration-300 ${
+                      className={`block px-4 py-3 text-lg font-medium tracking-wide transition-colors duration-300 border rounded ${
                         isActivePath(item.path)
-                          ? 'text-black'
-                          : 'text-neutral-400 hover:text-black'
+                          ? 'bg-black text-white border-black'
+                          : 'bg-transparent text-gray-600 border-gray-300 hover:border-gray-400 hover:text-black'
                       }`}
                     >
                       {item.name}

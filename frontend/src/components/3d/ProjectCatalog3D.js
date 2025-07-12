@@ -1,4 +1,4 @@
-// frontend/src/components/3d/ProjectCatalog3D.js - Минимальная версия БЕЗ белых плиток
+// frontend/src/components/3d/ProjectCatalog3D.js - Исправленная версия
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
@@ -32,12 +32,12 @@ const ProjectCatalogCard = React.memo(({
     `)}`;
   }, [project.imageUrl, project.title]);
 
-  // Загружаем текстуру
+  // Загружаем текстуру с правильными настройками
   const texture = useTexture(textureUrl, (texture) => {
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.flipY = false;
+    texture.flipY = true; // ✅ УБИРАЕМ ПЕРЕВОРОТ
   });
 
   // Простая анимация - только подъем при hover
@@ -106,7 +106,7 @@ const ProjectCatalogCard = React.memo(({
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
 
-      {/* ТОЛЬКО изображение - плоская плоскость */}
+      {/* ТОЛЬКО изображение - плоская плоскость БЕЗ ПЕРЕВОРОТА */}
       <mesh ref={meshRef} position={[0, 0, 0]}>
         <planeGeometry args={[4, 5.6]} />
         <meshBasicMaterial

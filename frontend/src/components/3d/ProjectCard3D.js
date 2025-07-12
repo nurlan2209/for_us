@@ -1,4 +1,4 @@
-// frontend/src/components/3d/ProjectCard3D.js - В стиле unveil.fr
+// frontend/src/components/3d/ProjectCard3D.js - Исправленная версия
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture, Float, Text } from '@react-three/drei';
@@ -98,12 +98,13 @@ const ProjectCard3D = React.memo(({
     project.imageUrl || '/api/placeholder/800/600'
   , [project.imageUrl]);
 
-  // Загружаем текстуру проекта
+  // ✅ ИСПРАВЛЯЕМ ЗАГРУЗКУ ТЕКСТУРЫ - ДОБАВЛЯЕМ flipY = false
   const texture = useTexture(textureUrl, (texture) => {
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
+    texture.flipY = true; // ✅ УБИРАЕМ ПЕРЕВОРОТ
   });
 
   // Определяем цвет текста на основе изображения
