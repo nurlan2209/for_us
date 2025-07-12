@@ -39,6 +39,20 @@ const AdminLayout = ({ children }) => {
     }
   ];
 
+  // Get page title based on route
+  const getPageTitle = () => {
+    const path = location.pathname;
+    if (path === '/admin') return 'Dashboard';
+    if (path === '/admin/projects') return 'Projects';
+    if (path === '/admin/studio') return 'Studio Settings';
+    if (path === '/admin/contact') return 'Contact Settings';
+    if (path === '/admin/settings') return 'Settings';
+    return 'Admin';
+  };
+
+  // Check if current page is not dashboard
+  const isNotDashboard = location.pathname !== '/admin';
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -125,18 +139,49 @@ const AdminLayout = ({ children }) => {
       {/* Main content */}
       <div className="flex-1 flex flex-col">
         
-        {/* Top bar */}
-        <header className="h-16 bg-white border-b border-neutral-200 px-4 flex items-center">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden text-neutral-600"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M3 5H15" stroke="currentColor" strokeWidth="1"/>
-              <path d="M3 9H15" stroke="currentColor" strokeWidth="1"/>
-              <path d="M3 13H15" stroke="currentColor" strokeWidth="1"/>
-            </svg>
-          </button>
+        {/* Top bar with breadcrumbs */}
+        <header className="h-16 bg-white border-b border-neutral-200 px-4 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden text-neutral-600"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M3 5H15" stroke="currentColor" strokeWidth="1"/>
+                <path d="M3 9H15" stroke="currentColor" strokeWidth="1"/>
+                <path d="M3 13H15" stroke="currentColor" strokeWidth="1"/>
+              </svg>
+            </button>
+            
+            {/* Breadcrumbs */}
+            <div className="flex items-center space-x-2 text-sm">
+              {isNotDashboard && (
+                <>
+                  <Link 
+                    to="/admin" 
+                    className="text-neutral-600 hover:text-neutral-900 transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                  <span className="text-neutral-400">/</span>
+                </>
+              )}
+              <span className="text-neutral-900 font-medium">{getPageTitle()}</span>
+            </div>
+          </div>
+          
+          {/* Back to Dashboard button (only on non-dashboard pages) */}
+          {isNotDashboard && (
+            <Link
+              to="/admin"
+              className="inline-flex items-center text-xs font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mr-1">
+                <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              BACK TO DASHBOARD
+            </Link>
+          )}
         </header>
 
         {/* Content */}

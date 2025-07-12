@@ -21,6 +21,7 @@ const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminProjects = React.lazy(() => import('./pages/admin/AdminProjects'));
 const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings'));
 const AdminStudioSettings = React.lazy(() => import('./pages/admin/AdminStudioSettings'));
+const AdminContactSettings = React.lazy(() => import('./pages/admin/AdminContactSettings'));
 const ProtectedRoute = React.lazy(() => import('./components/auth/ProtectedRoute'));
 
 // Оптимизированный QueryClient
@@ -164,6 +165,16 @@ function App() {
                   <ProtectedRoute requireAdmin>
                     <AdminLayout>
                       <PageTransition><AdminStudioSettings /></PageTransition>
+                    </AdminLayout>
+                  </ProtectedRoute>
+                </Suspense>
+              } />
+
+              <Route path="/admin/contact" element={
+                <Suspense fallback={<SmoothLoader text="Loading contact settings..." />}>
+                  <ProtectedRoute requireAdmin>
+                    <AdminLayout>
+                      <PageTransition><AdminContactSettings /></PageTransition>
                     </AdminLayout>
                   </ProtectedRoute>
                 </Suspense>

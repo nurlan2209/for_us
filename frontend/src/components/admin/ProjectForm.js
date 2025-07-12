@@ -161,7 +161,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="absolute inset-0 bg-black/20" />
+      <div className="absolute inset-0 bg-black/50" />
 
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
@@ -171,12 +171,12 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-200">
-          <h2 className="text-lg font-light text-neutral-900">
+          <h2 className="text-xl font-light text-neutral-900">
             {isEditing ? 'Edit Project' : 'New Project'}
           </h2>
           <button
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-600"
+            className="text-neutral-400 hover:text-neutral-900 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -191,7 +191,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             {/* Title & Technologies */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   Title *
                 </label>
                 <input
@@ -206,7 +206,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   Technologies *
                 </label>
                 <input
@@ -223,7 +223,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
 
             {/* Description */}
             <div>
-              <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+              <label className="block text-sm font-medium text-neutral-900 mb-2">
                 Description *
               </label>
               <textarea
@@ -240,7 +240,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             {/* URLs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   Project URL
                 </label>
                 <input
@@ -255,7 +255,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   GitHub URL
                 </label>
                 <input
@@ -272,7 +272,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
 
             {/* Image Upload */}
             <div>
-              <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+              <label className="block text-sm font-medium text-neutral-900 mb-2">
                 Project Image
               </label>
               <div className="space-y-4">
@@ -318,7 +318,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             {/* Settings */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   Status
                 </label>
                 <select
@@ -332,7 +332,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   Sort Order
                 </label>
                 <input
@@ -345,7 +345,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   Options
                 </label>
                 <label className="flex items-center space-x-2 px-3 py-2 border border-neutral-300 rounded cursor-pointer hover:bg-neutral-50 transition-colors">

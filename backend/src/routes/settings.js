@@ -14,6 +14,14 @@ const studioSettingsSchema = z.object({
   recognitions: z.array(z.string().min(1, 'Recognition required')).max(10, 'Too many recognitions').optional(),
 });
 
+// Validation schema for contact settings
+const contactSettingsSchema = z.object({
+  contactButtons: z.array(z.object({
+    text: z.string().min(1, 'Text is required'),
+    url: z.string().url('Must be a valid URL')
+  })).max(10, 'Too many contact buttons')
+});
+
 /**
  * GET /api/settings
  * Get all settings (public endpoint)
@@ -50,6 +58,26 @@ router.get('/studio', (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to fetch studio settings'
+    });
+  }
+});
+
+/**
+ * GET /api/settings/contact
+ * Get contact settings (public endpoint)
+ */
+router.get('/contact', (req, res) => {
+  try {
+    const settings = getSettings();
+    const contactSettings = {
+      contactButtons: settings.contact?.contactButtons || []
+    };
+    res.json({ contact: contactSettings });
+  } catch (error) {
+    console.error('Get contact settings error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to fetch contact settings'
     });
   }
 });
@@ -94,6 +122,50 @@ router.put('/studio', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to update studio settings'
+    });
+  }
+});
+
+/**
+ * PUT /api/settings/contact
+ * Update contact settings (admin only)
+ */
+router.put('/contact', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    // Validate request body
+    const validationResult = contactSettingsSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'Invalid contact settings data',
+        details: validationResult.error.errors
+      });
+    }
+
+    const contactData = validationResult.data;
+
+    // Get current settings
+    const currentSettings = getSettings();
+    
+    // Update contact settings
+    const updatedSettings = await updateSettings({
+      ...currentSettings,
+      contact: {
+        ...currentSettings.contact,
+        ...contactData
+      }
+    });
+
+    res.json({
+      message: 'Contact settings updated successfully',
+      contact: updatedSettings.contact
+    });
+
+  } catch (error) {
+    console.error('Update contact settings error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to update contact settings'
     });
   }
 });

@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from 'react-query';
+import { settingsAPI } from '../../utils/api';
 import ContactOverlay from './ContactOverlay';
 
 const Navbar = () => {
@@ -10,7 +12,17 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
 
-  const contactButtons = [];
+  // Fetch contact buttons
+  const { data: contactData } = useQuery(
+    'contact-settings',
+    () => settingsAPI.getContact(),
+    {
+      select: (response) => response.data.contact?.contactButtons || [],
+      staleTime: 5 * 60 * 1000,
+    }
+  );
+
+  const contactButtons = contactData || [];
 
   useEffect(() => {
     const handleScroll = () => {

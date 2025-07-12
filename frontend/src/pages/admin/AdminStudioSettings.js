@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { api } from '../../utils/api';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { MiniSpinner } from '../../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 
 const studioSettingsSchema = z.object({
@@ -110,7 +109,7 @@ const AdminStudioSettings = () => {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center h-64">
-          <MiniSpinner />
+          <div className="w-8 h-8 border-2 border-neutral-200 border-t-neutral-600 rounded-full animate-spin"></div>
         </div>
       </AdminLayout>
     );
@@ -118,37 +117,37 @@ const AdminStudioSettings = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-8">
+      <div className="max-w-2xl space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Studio Settings</h1>
-          <p className="text-gray-400">Manage studio page content</p>
+          <h1 className="text-2xl font-light text-neutral-900 mb-2">Studio Settings</h1>
+          <p className="text-sm text-neutral-600">Manage studio page content</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6">
+          <div className="border border-neutral-200 rounded-lg p-6 bg-white">
             
             {/* About Text */}
             <div className="mb-8">
-              <label className="block text-white font-medium mb-2">About Text</label>
+              <label className="block text-neutral-900 font-medium mb-2">About Text</label>
               <textarea
                 {...register('aboutText')}
                 rows={6}
-                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 transition-colors resize-vertical"
+                className="w-full bg-white border border-neutral-300 rounded px-4 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-500 transition-colors resize-vertical"
                 placeholder="About text..."
               />
               {errors.aboutText && (
-                <p className="text-red-400 text-sm mt-1">{errors.aboutText.message}</p>
+                <p className="text-red-600 text-sm mt-1">{errors.aboutText.message}</p>
               )}
             </div>
 
             {/* Clients */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <label className="text-white font-medium">Clients</label>
+                <label className="text-neutral-900 font-medium">Clients</label>
                 <button
                   type="button"
                   onClick={() => appendClient({ name: '' })}
-                  className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-1 rounded text-sm"
+                  className="px-3 py-1 bg-neutral-900 text-white text-xs font-medium rounded hover:bg-neutral-800 transition-colors"
                 >
                   Add Client
                 </button>
@@ -158,13 +157,13 @@ const AdminStudioSettings = () => {
                   <div key={field.id} className="flex gap-2">
                     <input
                       {...register(`clients.${index}.name`)}
-                      className="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500"
+                      className="flex-1 bg-white border border-neutral-300 rounded px-3 py-2 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-500 transition-colors"
                       placeholder="Client name"
                     />
                     <button
                       type="button"
                       onClick={() => removeClient(index)}
-                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded"
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded transition-colors"
                     >
                       ×
                     </button>
@@ -176,11 +175,11 @@ const AdminStudioSettings = () => {
             {/* Services */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <label className="text-white font-medium">Services</label>
+                <label className="text-neutral-900 font-medium">Services</label>
                 <button
                   type="button"
                   onClick={() => appendService({ name: '' })}
-                  className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-1 rounded text-sm"
+                  className="px-3 py-1 bg-neutral-900 text-white text-xs font-medium rounded hover:bg-neutral-800 transition-colors"
                 >
                   Add Service
                 </button>
@@ -190,13 +189,13 @@ const AdminStudioSettings = () => {
                   <div key={field.id} className="flex gap-2">
                     <input
                       {...register(`services.${index}.name`)}
-                      className="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500"
+                      className="flex-1 bg-white border border-neutral-300 rounded px-3 py-2 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-500 transition-colors"
                       placeholder="Service name"
                     />
                     <button
                       type="button"
                       onClick={() => removeService(index)}
-                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded"
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded transition-colors"
                     >
                       ×
                     </button>
@@ -208,11 +207,11 @@ const AdminStudioSettings = () => {
             {/* Recognitions */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <label className="text-white font-medium">Recognitions</label>
+                <label className="text-neutral-900 font-medium">Recognitions</label>
                 <button
                   type="button"
                   onClick={() => appendRecognition({ name: '' })}
-                  className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-1 rounded text-sm"
+                  className="px-3 py-1 bg-neutral-900 text-white text-xs font-medium rounded hover:bg-neutral-800 transition-colors"
                 >
                   Add Recognition
                 </button>
@@ -222,13 +221,13 @@ const AdminStudioSettings = () => {
                   <div key={field.id} className="flex gap-2">
                     <input
                       {...register(`recognitions.${index}.name`)}
-                      className="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500"
+                      className="flex-1 bg-white border border-neutral-300 rounded px-3 py-2 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-500 transition-colors"
                       placeholder="Recognition"
                     />
                     <button
                       type="button"
                       onClick={() => removeRecognition(index)}
-                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded"
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded transition-colors"
                     >
                       ×
                     </button>
@@ -244,11 +243,11 @@ const AdminStudioSettings = () => {
             <button
               type="submit"
               disabled={!isDirty || isSaving}
-              className="bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300"
+              className="px-6 py-2 bg-neutral-900 text-white text-sm font-medium rounded hover:bg-neutral-800 disabled:bg-neutral-400 transition-colors"
             >
               {isSaving ? (
                 <div className="flex items-center space-x-2">
-                  <MiniSpinner />
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   <span>Saving...</span>
                 </div>
               ) : (

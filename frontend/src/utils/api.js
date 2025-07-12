@@ -49,6 +49,8 @@ export const endpoints = {
     update: '/settings',
     getStudio: '/settings/studio',
     updateStudio: '/settings/studio',
+    getContact: '/settings/contact',
+    updateContact: '/settings/contact',
   },
   
   // Health check
@@ -139,6 +141,8 @@ export const settingsAPI = {
   update: (settings) => api.put(endpoints.settings.update, settings),
   getStudio: () => api.get(endpoints.settings.getStudio),
   updateStudio: (studioData) => api.put(endpoints.settings.updateStudio, studioData),
+  getContact: () => api.get(endpoints.settings.getContact),
+  updateContact: (contactData) => api.put(endpoints.settings.updateContact, contactData),
 };
 
 /**
