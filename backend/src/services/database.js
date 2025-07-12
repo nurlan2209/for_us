@@ -49,6 +49,47 @@ const defaultData = {
       linkedin: "",
       twitter: "",
       dribbble: ""
+    },
+    studio: {
+      aboutText: "UNVEIL is a creative studio using technology to expand human creativity. The eye, depicted in our logo, represents our most essential tool in a world overwhelmed with visual stimuli. We collaborate across diverse industries and cultural landscapes, working with brands to translate their vision into reality through innovation. It is backed by thorough research, ensuring that our creative decisions are deliberate and meaningful. No project is too small for us, we see each one as an opportunity to express ourselves. We love what we do.",
+      clients: [
+        "ALL NIGHT LONG",
+        "ANIMALZ",
+        "ANNELIESE MICHELSON",
+        "ANTHONY CALVDON",
+        "ARTCODE",
+        "ASSEMBLY GROUP",
+        "BOILER ROOM",
+        "COTY",
+        "DIPLOMATS",
+        "DOROTHY ST PICTURES",
+        "HELIOT EMIL",
+        "LEO BURNETT",
+        "LVMH GAIA",
+        "MINIMAXXX",
+        "NFT PARIS",
+        "NOVA CARSON",
+        "NTO",
+        "PSYCHO",
+        "PUMA",
+        "RED STAR FC",
+        "SILENCIO",
+        "TAKE AWAY",
+        "VAN CLEEF & ARPELS"
+      ],
+      services: [
+        "CREATIVE DIRECTION",
+        "AI",
+        "CGI",
+        "GRAPHIC IDENTITY",
+        "DIGITAL DESIGN",
+        "STRATEGY"
+      ],
+      recognitions: [
+        "GEN 48 EDITION #1: FINALIST",
+        "GEN 48 EDITION #2: GRAND PRIX",
+        "GEN 48 EDITION #3: JURY SELECTION"
+      ]
     }
   }
 };

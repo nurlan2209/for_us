@@ -1,25 +1,26 @@
 // frontend/src/App.js - Оптимизированная версия
-import React, { Suspense } from 'react';
+import React, { Suspense, memo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 
-// Компоненты
+// Компоненты (не ленивые)
 import Navbar from './components/ui/Navbar';
 import ProjectCursor from './components/ui/ProjectCursor';
 import ScrollToTop from './components/ui/ScrollToTop';
 
 // Ленивая загрузка страниц
-const Home = React.lazy(() => import('./pages/Home'));
 const Portfolio = React.lazy(() => import('./pages/Portfolio'));
 const ProjectDetail = React.lazy(() => import('./pages/ProjectDetail'));
+const Studio = React.lazy(() => import('./pages/Studio'));
 const Contact = React.lazy(() => import('./pages/Contact'));
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin'));
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminProjects = React.lazy(() => import('./pages/admin/AdminProjects'));
 const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings'));
+const AdminStudioSettings = React.lazy(() => import('./pages/admin/AdminStudioSettings'));
 const ProtectedRoute = React.lazy(() => import('./components/auth/ProtectedRoute'));
 
 // Оптимизированный QueryClient
@@ -30,50 +31,80 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000,
       cacheTime: 10 * 60 * 1000,
-      suspense: false, // Отключаем suspense для избежания белых экранов
+      suspense: false,
     },
-    mutations: {
-      retry: 0,
-    },
+    mutations: { retry: 0 },
   },
 });
 
-// Компонент плавной загрузки без черного экрана
-const SmoothLoader = ({ text = "Loading..." }) => (
+// Мемоизированный лоадер
+const SmoothLoader = memo(({ text = "Loading..." }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className="min-h-screen bg-white flex items-center justify-center"
+  >
+    <div className="text-center">
+      <div className="w-8 h-8 border-2 border-neutral-200 border-t-neutral-600 rounded-full animate-spin mx-auto mb-4"></div>
+      <p className="text-neutral-600 text-sm">{text}</p>
+    </div>
+  </motion.div>
+));
+
+// Мемоизированный переход
+const PageTransition = memo(({ children }) => (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    transition={{ duration: 0.2 }}
-    className="min-h-screen bg-white flex items-center justify-center"
-  >
-    <motion.div
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.3, delay: 0.1 }}
-      className="text-center"
-    >
-      <div className="w-8 h-8 border-2 border-neutral-200 border-t-neutral-600 rounded-full animate-spin mx-auto mb-4"></div>
-      <p className="text-neutral-600 text-sm">{text}</p>
-    </motion.div>
-  </motion.div>
-);
-
-// Обертка для плавных переходов страниц
-const PageTransition = ({ children }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    transition={{
-      duration: 0.3,
-      ease: [0.4, 0, 0.2, 1]
-    }}
+    transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
     style={{ minHeight: '100vh' }}
   >
     {children}
   </motion.div>
-);
+));
+
+// Мемоизированные макеты
+const MainLayout = memo(({ children }) => (
+  <>
+    <Navbar />
+    <main className="flex-1 relative">{children}</main>
+  </>
+));
+
+const AdminLayout = memo(({ children }) => (
+  <div className="min-h-screen bg-gray-900">{children}</div>
+));
+
+// Вспомогательный компонент для роутов
+const LazyRoute = memo(({ component: Component, fallbackText, layout: Layout = MainLayout, ...props }) => (
+  <Layout>
+    <Suspense fallback={<SmoothLoader text={fallbackText} />}>
+      <PageTransition>
+        <Component {...props} />
+      </PageTransition>
+    </Suspense>
+  </Layout>
+));
+
+// 404 страница
+const NotFound = memo(() => (
+  <div className="min-h-screen flex items-center justify-center bg-white pt-20">
+    <div className="text-center px-6">
+      <h1 className="text-8xl lg:text-9xl font-light text-neutral-200 mb-4">404</h1>
+      <h2 className="text-3xl lg:text-4xl font-light text-neutral-900 tracking-tight mb-4">
+        PAGE NOT FOUND
+      </h2>
+      <p className="text-lg text-neutral-600 mb-8 max-w-md mx-auto leading-relaxed">
+        The page you're looking for doesn't exist or has been moved.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="/" className="catalog-button-unveil catalog-button-primary">GO HOME</a>
+        <a href="/portfolio" className="catalog-button-unveil">VIEW PROJECTS</a>
+      </div>
+    </div>
+  </div>
+));
 
 function App() {
   return (
@@ -86,50 +117,15 @@ function App() {
 
             <Routes>
               {/* Публичные маршруты */}
-              <Route path="/" element={
-                <MainLayout>
-                  <Suspense fallback={<SmoothLoader />}>
-                    <PageTransition>
-                      <Portfolio />
-                    </PageTransition>
-                  </Suspense>
-                </MainLayout>
-              } />
-              
-              <Route path="/portfolio/:id" element={
-                <MainLayout>
-                  <Suspense fallback={<SmoothLoader text="Loading project..." />}>
-                    <PageTransition>
-                      <ProjectDetail />
-                    </PageTransition>
-                  </Suspense>
-                </MainLayout>
-              } />
-              
-              <Route path="/studio" element={
-                <MainLayout>
-                  <PageTransition>
-                    <StudioPage />
-                  </PageTransition>
-                </MainLayout>
-              } />
-              
-              <Route path="/contact" element={
-                <MainLayout>
-                  <Suspense fallback={<SmoothLoader text="Loading contact..." />}>
-                    <PageTransition>
-                      <Contact />
-                    </PageTransition>
-                  </Suspense>
-                </MainLayout>
-              } />
+              <Route path="/" element={<LazyRoute component={Portfolio} />} />
+              <Route path="/portfolio/:id" element={<LazyRoute component={ProjectDetail} fallbackText="Loading project..." />} />
+              <Route path="/studio" element={<LazyRoute component={Studio} fallbackText="Loading studio..." />} />
+              <Route path="/contact" element={<LazyRoute component={Contact} fallbackText="Loading contact..." />} />
 
               {/* Админ маршруты */}
               <Route path="/admin/login" element={
                 <Suspense fallback={<SmoothLoader text="Loading admin..." />}>
-                  <PageTransition>
-                    <AdminLogin />
-                  </PageTransition>
+                  <PageTransition><AdminLogin /></PageTransition>
                 </Suspense>
               } />
               
@@ -137,9 +133,7 @@ function App() {
                 <Suspense fallback={<SmoothLoader text="Loading dashboard..." />}>
                   <ProtectedRoute requireAdmin>
                     <AdminLayout>
-                      <PageTransition>
-                        <AdminDashboard />
-                      </PageTransition>
+                      <PageTransition><AdminDashboard /></PageTransition>
                     </AdminLayout>
                   </ProtectedRoute>
                 </Suspense>
@@ -149,9 +143,7 @@ function App() {
                 <Suspense fallback={<SmoothLoader text="Loading projects..." />}>
                   <ProtectedRoute requireAdmin>
                     <AdminLayout>
-                      <PageTransition>
-                        <AdminProjects />
-                      </PageTransition>
+                      <PageTransition><AdminProjects /></PageTransition>
                     </AdminLayout>
                   </ProtectedRoute>
                 </Suspense>
@@ -161,25 +153,29 @@ function App() {
                 <Suspense fallback={<SmoothLoader text="Loading settings..." />}>
                   <ProtectedRoute requireAdmin>
                     <AdminLayout>
-                      <PageTransition>
-                        <AdminSettings />
-                      </PageTransition>
+                      <PageTransition><AdminSettings /></PageTransition>
                     </AdminLayout>
                   </ProtectedRoute>
                 </Suspense>
               } />
 
-              {/* 404 */}
+              <Route path="/admin/studio" element={
+                <Suspense fallback={<SmoothLoader text="Loading studio settings..." />}>
+                  <ProtectedRoute requireAdmin>
+                    <AdminLayout>
+                      <PageTransition><AdminStudioSettings /></PageTransition>
+                    </AdminLayout>
+                  </ProtectedRoute>
+                </Suspense>
+              } />
+
               <Route path="*" element={
                 <MainLayout>
-                  <PageTransition>
-                    <NotFound />
-                  </PageTransition>
+                  <PageTransition><NotFound /></PageTransition>
                 </MainLayout>
               } />
             </Routes>
 
-            {/* Глобальные уведомления */}
             <Toaster
               position="top-right"
               toastOptions={{
@@ -193,93 +189,14 @@ function App() {
                   fontWeight: '500',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
                 },
-                success: {
-                  style: {
-                    border: '1px solid #00d4aa',
-                    color: '#00d4aa',
-                  },
-                },
-                error: {
-                  style: {
-                    border: '1px solid #ef4444',
-                    color: '#ef4444',
-                  },
-                },
+                success: { style: { border: '1px solid #00d4aa', color: '#00d4aa' } },
+                error: { style: { border: '1px solid #ef4444', color: '#ef4444' } },
               }}
             />
           </div>
         </Router>
       </AuthProvider>
     </QueryClientProvider>
-  );
-}
-
-// Основной макет с предзагрузкой
-function MainLayout({ children }) {
-  return (
-    <>
-      <Navbar />
-      <main className="flex-1 relative">
-        {children}
-      </main>
-    </>
-  );
-}
-
-// Админ макет
-function AdminLayout({ children }) {
-  return (
-    <div className="min-h-screen bg-gray-900">
-      {children}
-    </div>
-  );
-}
-
-// Студия страница
-function StudioPage() {
-  return (
-    <div className="min-h-screen bg-white pt-24">
-      <div className="max-w-4xl mx-auto px-6 py-20">
-        <div className="text-center">
-          <h1 className="text-5xl lg:text-7xl font-light text-neutral-900 tracking-tight mb-8">
-            STUDIO
-          </h1>
-          <p className="text-lg text-neutral-600 leading-relaxed max-w-2xl mx-auto">
-            Creative studio information will be here.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 404 страница
-function NotFound() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-white pt-20">
-      <div className="text-center px-6">
-        <div className="mb-8">
-          <h1 className="text-8xl lg:text-9xl font-light text-neutral-200 mb-4">
-            404
-          </h1>
-          <h2 className="text-3xl lg:text-4xl font-light text-neutral-900 tracking-tight mb-4">
-            PAGE NOT FOUND
-          </h2>
-          <p className="text-lg text-neutral-600 mb-8 max-w-md mx-auto leading-relaxed">
-            The page you're looking for doesn't exist or has been moved.
-          </p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a href="/" className="catalog-button-unveil catalog-button-primary">
-            GO HOME
-          </a>
-          <a href="/portfolio" className="catalog-button-unveil">
-            VIEW PROJECTS
-          </a>
-        </div>
-      </div>
-    </div>
   );
 }
 

@@ -25,6 +25,12 @@ const AdminLayout = ({ children }) => {
       current: location.pathname.startsWith('/admin/projects')
     },
     {
+      name: 'Studio Settings',
+      href: '/admin/studio',
+      icon: '🎨',
+      current: location.pathname === '/admin/studio'
+    },
+    {
       name: 'Настройки',
       href: '/admin/settings',
       icon: '⚙️',
@@ -169,6 +175,7 @@ const AdminLayout = ({ children }) => {
                   <span className="text-gray-600">/</span>
                   <span className="text-white">
                     {location.pathname.includes('projects') ? 'Проекты' : 
+                     location.pathname.includes('studio') ? 'Studio Settings' :
                      location.pathname.includes('settings') ? 'Настройки' : 'Страница'}
                   </span>
                 </>

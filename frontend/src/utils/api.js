@@ -43,6 +43,14 @@ export const endpoints = {
     getUrl: (fileName) => `/upload/url/${fileName}`,
   },
   
+  // Settings endpoints
+  settings: {
+    getAll: '/settings',
+    update: '/settings',
+    getStudio: '/settings/studio',
+    updateStudio: '/settings/studio',
+  },
+  
   // Health check
   health: '/health',
 };
@@ -121,6 +129,16 @@ export const uploadAPI = {
   getFileUrl: (fileName, expiry) => api.get(endpoints.upload.getUrl(fileName), {
     params: { expiry },
   }),
+};
+
+/**
+ * Settings API calls
+ */
+export const settingsAPI = {
+  getAll: () => api.get(endpoints.settings.getAll),
+  update: (settings) => api.put(endpoints.settings.update, settings),
+  getStudio: () => api.get(endpoints.settings.getStudio),
+  updateStudio: (studioData) => api.put(endpoints.settings.updateStudio, studioData),
 };
 
 /**

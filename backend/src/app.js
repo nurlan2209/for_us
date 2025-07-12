@@ -12,6 +12,7 @@ dotenv.config();
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
 import uploadRoutes from './routes/upload.js';
+import settingsRoutes from './routes/settings.js';
 
 // Import services
 import { initializeDatabase } from './services/database.js';
@@ -60,6 +61,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
