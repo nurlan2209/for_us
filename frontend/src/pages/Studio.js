@@ -19,8 +19,8 @@ const Studio = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white pt-24">
-      <div className="max-w-4xl px-6 lg:px-8">
+    <div className="min-h-screen bg-white pt-24" style={{ paddingTop: '300px' }}>
+      <div className="px-4 pl-1">
         
         {/* About Section */}
         <motion.div
@@ -30,7 +30,7 @@ const Studio = () => {
           className="mb-12"
         >
           <div className="max-w-lg">
-            <p className="text-sm text-neutral-900 leading-relaxed">
+            <p className="text-xs text-neutral-900 leading-relaxed"> {/* Изменил с text-sm на text-xs */}
               UNVEIL is a creative studio using technology to expand human creativity. The eye, 
               depicted in our logo, represents our most essential tool in a world overwhelmed with 
               visual stimuli. We collaborate across diverse industries and cultural landscapes, 
@@ -47,12 +47,12 @@ const Studio = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="mb-12"
+          className="mb-12 flex"
         >
-          <h2 className="text-xs font-medium text-neutral-400 tracking-wide uppercase mb-6">
+          <h2 className="text-xs font-medium text-neutral-400 tracking-wide uppercase mb-6 w-48 flex-shrink-0">
             CLIENTS
           </h2>
-          <div className="max-w-lg space-y-1">
+          <div className="flex-1 space-y-1">
             {clients.map((client, index) => (
               <motion.div
                 key={client}
@@ -72,12 +72,12 @@ const Studio = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="mb-12"
+          className="mb-12 flex"
         >
-          <h2 className="text-xs font-medium text-neutral-400 tracking-wide uppercase mb-6">
+          <h2 className="text-xs font-medium text-neutral-400 tracking-wide uppercase mb-6 w-48 flex-shrink-0">
             SERVICES
           </h2>
-          <div className="max-w-lg space-y-1">
+          <div className="flex-1 space-y-1">
             {services.map((service, index) => (
               <motion.div
                 key={service}

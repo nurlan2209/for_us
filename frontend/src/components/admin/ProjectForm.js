@@ -6,16 +6,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from 'react-query';
 import { projectsAPI, uploadAPI } from '../../utils/api';
-import { MiniSpinner } from '../ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 
-// Project validation schema
 const projectSchema = z.object({
-  title: z.string().min(1, 'Название обязательно').max(100, 'Название слишком длинное'),
-  description: z.string().min(1, 'Описание обязательно').max(1000, 'Описание слишком длинное'),
-  technologies: z.string().min(1, 'Технологии обязательны').max(200, 'Список технологий слишком длинный'),
-  projectUrl: z.string().url('Некорректный URL').optional().or(z.literal('')),
-  githubUrl: z.string().url('Некорректный URL').optional().or(z.literal('')),
+  title: z.string().min(1, 'Title required').max(100, 'Title too long'),
+  description: z.string().min(1, 'Description required').max(1000, 'Description too long'),
+  technologies: z.string().min(1, 'Technologies required').max(200, 'Technologies list too long'),
+  projectUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
+  githubUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
   featured: z.boolean().default(false),
   status: z.enum(['draft', 'published', 'archived']).default('draft'),
   sortOrder: z.number().int().min(0).default(0),
@@ -33,8 +31,6 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setValue,
-    watch,
     reset,
   } = useForm({
     resolver: zodResolver(projectSchema),
@@ -51,7 +47,6 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     },
   });
 
-  // Load project data when editing
   useEffect(() => {
     if (project) {
       reset({
@@ -68,17 +63,16 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     }
   }, [project, reset]);
 
-  // Create/Update mutations
   const createMutation = useMutation(
     (data) => projectsAPI.create(data),
     {
       onSuccess: () => {
-        toast.success('Проект создан');
+        toast.success('Project created');
         queryClient.invalidateQueries('admin-projects');
         onSuccess?.();
       },
       onError: (error) => {
-        toast.error(error.response?.data?.message || 'Ошибка создания');
+        toast.error(error.response?.data?.message || 'Create error');
       },
     }
   );
@@ -87,36 +81,32 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     ({ id, data }) => projectsAPI.update(id, data),
     {
       onSuccess: () => {
-        toast.success('Проект обновлен');
+        toast.success('Project updated');
         queryClient.invalidateQueries('admin-projects');
         onSuccess?.();
       },
       onError: (error) => {
-        toast.error(error.response?.data?.message || 'Ошибка обновления');
+        toast.error(error.response?.data?.message || 'Update error');
       },
     }
   );
 
-  // Handle image upload
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error('Можно загружать только изображения');
+      toast.error('Only images allowed');
       return;
     }
 
-    // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('Размер файла не должен превышать 10MB');
+      toast.error('Image must be smaller than 10MB');
       return;
     }
 
     setImageFile(file);
     
-    // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
       setImagePreview(e.target.result);
@@ -124,7 +114,6 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     reader.readAsDataURL(file);
   };
 
-  // Upload image
   const uploadImage = async () => {
     if (!imageFile) return imagePreview;
 
@@ -133,17 +122,15 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       const response = await uploadAPI.uploadImage(imageFile);
       return response.data.file.url;
     } catch (error) {
-      toast.error('Ошибка загрузки изображения');
+      toast.error('Image upload failed');
       throw error;
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Form submission
   const onSubmit = async (data) => {
     try {
-      // Upload image if new file selected
       let imageUrl = imagePreview;
       if (imageFile) {
         imageUrl = await uploadImage();
@@ -174,155 +161,144 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/20" />
 
-      {/* Modal */}
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
+        initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="relative bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-2xl font-bold text-white">
-            {isEditing ? 'Редактировать проект' : 'Создать проект'}
+        <div className="flex items-center justify-between p-6 border-b border-neutral-200">
+          <h2 className="text-lg font-light text-neutral-900">
+            {isEditing ? 'Edit Project' : 'New Project'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-neutral-400 hover:text-neutral-600"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Form */}
-        <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+        <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
           <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
-            {/* Basic Info */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Title */}
+            
+            {/* Title & Technologies */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-white font-medium mb-2">
-                  Название проекта *
+                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                  Title *
                 </label>
                 <input
                   {...register('title')}
                   type="text"
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 transition-colors"
-                  placeholder="Название проекта"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
+                  placeholder="Project title"
                 />
                 {errors.title && (
-                  <p className="text-red-400 text-sm mt-1">{errors.title.message}</p>
+                  <p className="text-xs text-red-600 mt-1">{errors.title.message}</p>
                 )}
               </div>
 
-              {/* Technologies */}
               <div>
-                <label className="block text-white font-medium mb-2">
-                  Технологии *
+                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                  Technologies *
                 </label>
                 <input
                   {...register('technologies')}
                   type="text"
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 transition-colors"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
                   placeholder="React, Three.js, Node.js"
                 />
-                <p className="text-gray-400 text-xs mt-1">Разделяйте запятыми</p>
                 {errors.technologies && (
-                  <p className="text-red-400 text-sm mt-1">{errors.technologies.message}</p>
+                  <p className="text-xs text-red-600 mt-1">{errors.technologies.message}</p>
                 )}
               </div>
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-white font-medium mb-2">
-                Описание *
+              <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                Description *
               </label>
               <textarea
                 {...register('description')}
                 rows={4}
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 transition-colors resize-vertical"
-                placeholder="Подробное описание проекта..."
+                className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors resize-vertical"
+                placeholder="Project description..."
               />
               {errors.description && (
-                <p className="text-red-400 text-sm mt-1">{errors.description.message}</p>
+                <p className="text-xs text-red-600 mt-1">{errors.description.message}</p>
               )}
             </div>
 
             {/* URLs */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-white font-medium mb-2">
-                  URL проекта
+                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                  Project URL
                 </label>
                 <input
                   {...register('projectUrl')}
                   type="url"
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 transition-colors"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
                   placeholder="https://example.com"
                 />
                 {errors.projectUrl && (
-                  <p className="text-red-400 text-sm mt-1">{errors.projectUrl.message}</p>
+                  <p className="text-xs text-red-600 mt-1">{errors.projectUrl.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-white font-medium mb-2">
+                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
                   GitHub URL
                 </label>
                 <input
                   {...register('githubUrl')}
                   type="url"
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 transition-colors"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
                   placeholder="https://github.com/user/repo"
                 />
                 {errors.githubUrl && (
-                  <p className="text-red-400 text-sm mt-1">{errors.githubUrl.message}</p>
+                  <p className="text-xs text-red-600 mt-1">{errors.githubUrl.message}</p>
                 )}
               </div>
             </div>
 
             {/* Image Upload */}
             <div>
-              <label className="block text-white font-medium mb-2">
-                Изображение проекта
+              <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                Project Image
               </label>
               <div className="space-y-4">
-                {/* Upload button */}
                 <div className="flex items-center space-x-4">
-                  <label className="cursor-pointer bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white transition-colors">
+                  <label className="cursor-pointer px-4 py-2 border border-neutral-300 rounded text-sm hover:bg-neutral-50 transition-colors">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
                       className="hidden"
                     />
-                    <span className="flex items-center">
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      Выбрать изображение
-                    </span>
+                    Choose Image
                   </label>
                   {imageFile && (
-                    <span className="text-sm text-gray-400">
+                    <span className="text-xs text-neutral-600">
                       {imageFile.name}
                     </span>
                   )}
                 </div>
 
-                {/* Image preview */}
                 {imagePreview && (
                   <div className="relative inline-block">
                     <img
                       src={imagePreview}
                       alt="Preview"
-                      className="w-32 h-32 object-cover rounded-lg border border-gray-600"
+                      className="w-24 h-24 object-cover rounded border border-neutral-300"
                     />
                     <button
                       type="button"
@@ -330,7 +306,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
                         setImagePreview('');
                         setImageFile(null);
                       }}
-                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm transition-colors"
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
                     >
                       ×
                     </button>
@@ -340,85 +316,75 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             </div>
 
             {/* Settings */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Status */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-white font-medium mb-2">
-                  Статус
+                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                  Status
                 </label>
                 <select
                   {...register('status')}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
                 >
-                  <option value="draft">Черновик</option>
-                  <option value="published">Опубликован</option>
-                  <option value="archived">Архив</option>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="archived">Archived</option>
                 </select>
               </div>
 
-              {/* Sort Order */}
               <div>
-                <label className="block text-white font-medium mb-2">
-                  Порядок сортировки
+                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                  Sort Order
                 </label>
                 <input
                   {...register('sortOrder', { valueAsNumber: true })}
                   type="number"
                   min="0"
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 transition-colors"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
                   placeholder="0"
                 />
-                <p className="text-gray-400 text-xs mt-1">Меньше = выше в списке</p>
               </div>
 
-              {/* Featured */}
               <div>
-                <label className="block text-white font-medium mb-2">
-                  Настройки
+                <label className="block text-xs font-medium text-neutral-900 mb-2 uppercase tracking-wide">
+                  Options
                 </label>
-                <label className="flex items-center space-x-3 bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 cursor-pointer hover:bg-gray-700 transition-colors">
+                <label className="flex items-center space-x-2 px-3 py-2 border border-neutral-300 rounded cursor-pointer hover:bg-neutral-50 transition-colors">
                   <input
                     {...register('featured')}
                     type="checkbox"
-                    className="w-4 h-4 text-primary-500 bg-gray-700 border-gray-600 rounded focus:ring-primary-500 focus:ring-2"
+                    className="w-4 h-4"
                   />
-                  <span className="text-white">
-                    Избранный проект
-                  </span>
+                  <span className="text-sm">Featured</span>
                 </label>
               </div>
             </div>
-
-            {/* Form Actions */}
-            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-700">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-6 py-3 text-gray-400 hover:text-white border border-gray-600 hover:border-gray-500 rounded-lg transition-colors"
-                disabled={isLoading}
-              >
-                Отмена
-              </button>
-              
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:scale-100 shadow-lg hover:shadow-xl disabled:shadow-none"
-              >
-                {isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <MiniSpinner />
-                    <span>
-                      {isUploading ? 'Загрузка...' : 
-                       isEditing ? 'Обновление...' : 'Создание...'}
-                    </span>
-                  </div>
-                ) : (
-                  isEditing ? 'Обновить проект' : 'Создать проект'
-                )}
-              </button>
-            </div>
           </form>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end space-x-3 p-6 border-t border-neutral-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          
+          <button
+            type="submit"
+            form="project-form"
+            onClick={handleSubmit(onSubmit)}
+            disabled={isLoading}
+            className="px-4 py-2 bg-neutral-900 text-white text-sm rounded hover:bg-neutral-800 disabled:bg-neutral-400 transition-colors"
+          >
+            {isLoading ? 
+              (isUploading ? 'Uploading...' : 
+               isEditing ? 'Updating...' : 'Creating...') :
+              (isEditing ? 'Update' : 'Create')
+            }
+          </button>
         </div>
       </motion.div>
     </motion.div>
