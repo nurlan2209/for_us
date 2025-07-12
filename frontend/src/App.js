@@ -1,43 +1,79 @@
-// frontend/src/App.js - Обновленная версия без About
-import React from 'react';
+// frontend/src/App.js - Оптимизированная версия
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { AnimatePresence, motion } from 'framer-motion';
 
-// Pages
-import Home from './pages/Home';
-import Portfolio from './pages/Portfolio';
-import ProjectDetail from './pages/ProjectDetail';
-import Contact from './pages/Contact';
-
-// Admin pages
-import AdminLogin from './pages/admin/AdminLogin';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminProjects from './pages/admin/AdminProjects';
-import AdminSettings from './pages/admin/AdminSettings';
-
-// Components
+// Компоненты
 import Navbar from './components/ui/Navbar';
 import ProjectCursor from './components/ui/ProjectCursor';
 import ScrollToTop from './components/ui/ScrollToTop';
-import LoadingSpinner from './components/ui/LoadingSpinner';
 
-// Create QueryClient with unveil.fr optimizations
+// Ленивая загрузка страниц
+const Home = React.lazy(() => import('./pages/Home'));
+const Portfolio = React.lazy(() => import('./pages/Portfolio'));
+const ProjectDetail = React.lazy(() => import('./pages/ProjectDetail'));
+const Contact = React.lazy(() => import('./pages/Contact'));
+const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin'));
+const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminProjects = React.lazy(() => import('./pages/admin/AdminProjects'));
+const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings'));
+const ProtectedRoute = React.lazy(() => import('./components/auth/ProtectedRoute'));
+
+// Оптимизированный QueryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 10 * 60 * 1000, // 10 minutes
-      cacheTime: 15 * 60 * 1000, // 15 minutes
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 10 * 60 * 1000,
+      suspense: false, // Отключаем suspense для избежания белых экранов
     },
     mutations: {
-      retry: 1,
+      retry: 0,
     },
   },
 });
+
+// Компонент плавной загрузки без черного экрана
+const SmoothLoader = ({ text = "Loading..." }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.2 }}
+    className="min-h-screen bg-white flex items-center justify-center"
+  >
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3, delay: 0.1 }}
+      className="text-center"
+    >
+      <div className="w-8 h-8 border-2 border-neutral-200 border-t-neutral-600 rounded-full animate-spin mx-auto mb-4"></div>
+      <p className="text-neutral-600 text-sm">{text}</p>
+    </motion.div>
+  </motion.div>
+);
+
+// Обертка для плавных переходов страниц
+const PageTransition = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    transition={{
+      duration: 0.3,
+      ease: [0.4, 0, 0.2, 1]
+    }}
+    style={{ minHeight: '100vh' }}
+  >
+    {children}
+  </motion.div>
+);
 
 function App() {
   return (
@@ -46,53 +82,108 @@ function App() {
         <Router>
           <div className="min-h-screen bg-white text-neutral-900">
             <ScrollToTop />
-
-            {/* Global 3D Project Cursor */}
             <ProjectCursor />
 
             <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<MainLayout><Portfolio /></MainLayout>} />
-              <Route path="/portfolio/:id" element={<MainLayout><ProjectDetail /></MainLayout>} />
-              <Route path="/studio" element={<MainLayout><StudioPage /></MainLayout>} />
-              <Route path="/contact" element={<MainLayout><Contact /></MainLayout>} />
+              {/* Публичные маршруты */}
+              <Route path="/" element={
+                <MainLayout>
+                  <Suspense fallback={<SmoothLoader />}>
+                    <PageTransition>
+                      <Portfolio />
+                    </PageTransition>
+                  </Suspense>
+                </MainLayout>
+              } />
+              
+              <Route path="/portfolio/:id" element={
+                <MainLayout>
+                  <Suspense fallback={<SmoothLoader text="Loading project..." />}>
+                    <PageTransition>
+                      <ProjectDetail />
+                    </PageTransition>
+                  </Suspense>
+                </MainLayout>
+              } />
+              
+              <Route path="/studio" element={
+                <MainLayout>
+                  <PageTransition>
+                    <StudioPage />
+                  </PageTransition>
+                </MainLayout>
+              } />
+              
+              <Route path="/contact" element={
+                <MainLayout>
+                  <Suspense fallback={<SmoothLoader text="Loading contact..." />}>
+                    <PageTransition>
+                      <Contact />
+                    </PageTransition>
+                  </Suspense>
+                </MainLayout>
+              } />
 
-              {/* Admin routes */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route
-                path="/admin"
-                element={
+              {/* Админ маршруты */}
+              <Route path="/admin/login" element={
+                <Suspense fallback={<SmoothLoader text="Loading admin..." />}>
+                  <PageTransition>
+                    <AdminLogin />
+                  </PageTransition>
+                </Suspense>
+              } />
+              
+              <Route path="/admin" element={
+                <Suspense fallback={<SmoothLoader text="Loading dashboard..." />}>
                   <ProtectedRoute requireAdmin>
-                    <AdminLayout><AdminDashboard /></AdminLayout>
+                    <AdminLayout>
+                      <PageTransition>
+                        <AdminDashboard />
+                      </PageTransition>
+                    </AdminLayout>
                   </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/projects"
-                element={
+                </Suspense>
+              } />
+              
+              <Route path="/admin/projects" element={
+                <Suspense fallback={<SmoothLoader text="Loading projects..." />}>
                   <ProtectedRoute requireAdmin>
-                    <AdminLayout><AdminProjects /></AdminLayout>
+                    <AdminLayout>
+                      <PageTransition>
+                        <AdminProjects />
+                      </PageTransition>
+                    </AdminLayout>
                   </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/settings"
-                element={
+                </Suspense>
+              } />
+              
+              <Route path="/admin/settings" element={
+                <Suspense fallback={<SmoothLoader text="Loading settings..." />}>
                   <ProtectedRoute requireAdmin>
-                    <AdminLayout><AdminSettings /></AdminLayout>
+                    <AdminLayout>
+                      <PageTransition>
+                        <AdminSettings />
+                      </PageTransition>
+                    </AdminLayout>
                   </ProtectedRoute>
-                }
-              />
+                </Suspense>
+              } />
 
-              {/* 404 page */}
-              <Route path="*" element={<MainLayout><NotFound /></MainLayout>} />
+              {/* 404 */}
+              <Route path="*" element={
+                <MainLayout>
+                  <PageTransition>
+                    <NotFound />
+                  </PageTransition>
+                </MainLayout>
+              } />
             </Routes>
 
-            {/* Global Toast Notifications */}
+            {/* Глобальные уведомления */}
             <Toaster
               position="top-right"
               toastOptions={{
-                duration: 4000,
+                duration: 3000,
                 style: {
                   background: '#ffffff',
                   color: '#18181b',
@@ -100,32 +191,18 @@ function App() {
                   borderRadius: '8px',
                   fontSize: '14px',
                   fontWeight: '500',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
                 },
                 success: {
                   style: {
                     border: '1px solid #00d4aa',
                     color: '#00d4aa',
                   },
-                  iconTheme: {
-                    primary: '#00d4aa',
-                    secondary: '#ffffff',
-                  },
                 },
                 error: {
                   style: {
                     border: '1px solid #ef4444',
                     color: '#ef4444',
-                  },
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#ffffff',
-                  },
-                },
-                loading: {
-                  style: {
-                    border: '1px solid #0066ff',
-                    color: '#0066ff',
                   },
                 },
               }}
@@ -137,44 +214,28 @@ function App() {
   );
 }
 
-// Main layout for public pages
+// Основной макет с предзагрузкой
 function MainLayout({ children }) {
   return (
     <>
       <Navbar />
       <main className="flex-1 relative">
-        <React.Suspense 
-          fallback={
-            <div className="min-h-screen flex items-center justify-center bg-white">
-              <LoadingSpinner text="Loading..." />
-            </div>
-          }
-        >
-          {children}
-        </React.Suspense>
+        {children}
       </main>
     </>
   );
 }
 
-// Admin layout
+// Админ макет
 function AdminLayout({ children }) {
   return (
-    <div className="min-h-screen bg-gray-800">
-      <React.Suspense 
-        fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <LoadingSpinner text="Loading admin panel..." />
-          </div>
-        }
-      >
-        {children}
-      </React.Suspense>
+    <div className="min-h-screen bg-gray-900">
+      {children}
     </div>
   );
 }
 
-// Placeholder Studio page (минималистичная как Contact)
+// Студия страница
 function StudioPage() {
   return (
     <div className="min-h-screen bg-white pt-24">
@@ -192,7 +253,7 @@ function StudioPage() {
   );
 }
 
-// 404 Not Found component
+// 404 страница
 function NotFound() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white pt-20">
@@ -210,25 +271,12 @@ function NotFound() {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a
-            href="/"
-            className="catalog-button-unveil catalog-button-primary"
-          >
+          <a href="/" className="catalog-button-unveil catalog-button-primary">
             GO HOME
           </a>
-          <a
-            href="/portfolio"
-            className="catalog-button-unveil"
-          >
+          <a href="/portfolio" className="catalog-button-unveil">
             VIEW PROJECTS
           </a>
-        </div>
-        
-        {/* Decorative elements */}
-        <div className="mt-16 flex justify-center space-x-8 opacity-30">
-          <div className="w-2 h-2 bg-neutral-300 rounded-full"></div>
-          <div className="w-2 h-2 bg-neutral-300 rounded-full"></div>
-          <div className="w-2 h-2 bg-neutral-300 rounded-full"></div>
         </div>
       </div>
     </div>
