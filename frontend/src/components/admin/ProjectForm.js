@@ -1,4 +1,4 @@
-// frontend/src/components/admin/ProjectForm.js - Обновленная версия
+// frontend/src/components/admin/ProjectForm.js - Полная версия с валидацией
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -25,6 +25,7 @@ const projectSchema = z.object({
 const ProjectForm = ({ project, onClose, onSuccess }) => {
   const [mediaFiles, setMediaFiles] = useState([]);
   const [activeTab, setActiveTab] = useState('basic');
+  const [hasMediaValidationError, setHasMediaValidationError] = useState(false);
   const queryClient = useQueryClient();
 
   const isEditing = !!project?.id;
@@ -69,6 +70,12 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     }
   }, [project, reset]);
 
+  // Валидация медиафайлов
+  useEffect(() => {
+    const firstFileIsNotImage = mediaFiles.length > 0 && mediaFiles[0].type !== 'image';
+    setHasMediaValidationError(firstFileIsNotImage);
+  }, [mediaFiles]);
+
   const createMutation = useMutation(
     (data) => projectsAPI.create(data),
     {
@@ -101,6 +108,10 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     setMediaFiles(prev => [...prev, ...newFiles]);
   };
 
+  const handleMediaFilesReorder = (reorderedFiles) => {
+    setMediaFiles(reorderedFiles);
+  };
+
   const handleRemoveMedia = (index) => {
     setMediaFiles(prev => prev.filter((_, i) => i !== index));
   };
@@ -112,6 +123,13 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
   };
 
   const onSubmit = async (data) => {
+    // Валидация медиафайлов перед отправкой
+    if (mediaFiles.length > 0 && mediaFiles[0].type !== 'image') {
+      toast.error('First media file must be an image for project cover!');
+      setActiveTab('media'); // Переключаемся на вкладку с медиа
+      return;
+    }
+
     const projectData = {
       ...data,
       mediaFiles,
@@ -130,7 +148,12 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
 
   const tabs = [
     { id: 'basic', name: 'Basic Info', icon: '📝' },
-    { id: 'media', name: 'Media', icon: '🖼️' },
+    { 
+      id: 'media', 
+      name: 'Media', 
+      icon: '🖼️',
+      hasError: hasMediaValidationError 
+    },
     { id: 'buttons', name: 'Buttons', icon: '🔗' },
     { id: 'settings', name: 'Settings', icon: '⚙️' },
   ];
@@ -173,14 +196,17 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-neutral-900 text-neutral-900'
                     : 'border-transparent text-neutral-600 hover:text-neutral-900'
-                }`}
+                } ${tab.hasError ? 'text-red-600' : ''}`}
               >
                 <span>{tab.icon}</span>
                 <span>{tab.name}</span>
+                {tab.hasError && (
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                )}
               </button>
             ))}
           </div>
@@ -245,63 +271,104 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             {/* Media Tab */}
             {activeTab === 'media' && (
               <div className="space-y-6">
+                {/* Media validation error */}
+                {hasMediaValidationError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-red-900">Invalid Cover File</h4>
+                        <p className="mt-1 text-sm text-red-700">
+                          The first media file must be an image (JPG, PNG, WebP, or GIF) to serve as the project cover. 
+                          Please drag an image to the first position or remove the video from the first position.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <MediaUploader
                   onFilesUploaded={handleMediaFilesChange}
+                  onFilesReorder={handleMediaFilesReorder}
                   existingFiles={mediaFiles}
                 />
 
-                {/* Media List */}
+                {/* Media List with Captions */}
                 {mediaFiles.length > 0 && (
                   <div className="space-y-4">
                     <h4 className="text-sm font-medium text-neutral-900">
-                      Media Files ({mediaFiles.length})
+                      Media Captions & Details ({mediaFiles.length})
                     </h4>
                     {mediaFiles.map((file, index) => (
-                      <div key={file.id || index} className="flex items-start space-x-4 p-4 border border-neutral-200 rounded-lg">
-                        <div className="w-16 h-16 bg-neutral-100 rounded-lg overflow-hidden flex-shrink-0">
-                          {file.type === 'video' ? (
-                            <img
-                              src={file.thumbnail || '/placeholder-video.jpg'}
-                              alt={`Media ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <img
-                              src={file.url}
-                              alt={`Media ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-neutral-900">
-                                {file.name || `Media ${index + 1}`}
-                              </p>
-                              <p className="text-xs text-neutral-500">
-                                {file.type.toUpperCase()} • {(file.size / 1024 / 1024).toFixed(1)}MB
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMedia(index)}
-                              className="text-red-500 hover:text-red-700 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                      <div key={file.id || index} className="border border-neutral-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-16 h-16 bg-neutral-100 rounded-lg overflow-hidden flex-shrink-0 relative">
+                            {index === 0 && (
+                              <div className={`absolute -top-1 -left-1 z-10 px-1 py-0.5 rounded text-xs font-bold ${
+                                file.type === 'image' 
+                                  ? 'bg-green-500 text-white' 
+                                  : 'bg-red-500 text-white'
+                              }`}>
+                                {file.type === 'image' ? 'COVER' : 'ERROR'}
+                              </div>
+                            )}
+                            {file.type === 'video' ? (
+                              <img
+                                src={file.thumbnail || '/placeholder-video.jpg'}
+                                alt={`Media ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <img
+                                src={file.url}
+                                alt={`Media ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
                           </div>
                           
-                          <input
-                            type="text"
-                            placeholder="Add caption (optional)"
-                            value={file.caption || ''}
-                            onChange={(e) => handleMediaCaptionChange(index, e.target.value)}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
-                          />
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-neutral-900">
+                                  {file.name || `Media ${index + 1}`}
+                                  {index === 0 && (
+                                    <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                                      file.type === 'image' 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-red-100 text-red-800'
+                                    }`}>
+                                      {file.type === 'image' ? 'Project Cover' : 'Invalid Cover!'}
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-neutral-500">
+                                  {file.type.toUpperCase()} • {(file.size / 1024 / 1024).toFixed(1)}MB
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMedia(index)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                            
+                            <input
+                              type="text"
+                              placeholder="Add caption (optional)"
+                              value={file.caption || ''}
+                              onChange={(e) => handleMediaCaptionChange(index, e.target.value)}
+                              className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -476,7 +543,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
           <button
             type="submit"
             onClick={handleSubmit(onSubmit)}
-            disabled={isLoading}
+            disabled={isLoading || hasMediaValidationError}
             className="px-4 py-2 bg-neutral-900 text-white text-sm rounded hover:bg-neutral-800 disabled:bg-neutral-400 transition-colors"
           >
             {isLoading ? 
