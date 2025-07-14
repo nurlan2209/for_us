@@ -1,4 +1,4 @@
-// frontend/src/components/3d/ProjectStack3D.js - Стек проектов как на unveil.fr
+// frontend/src/components/3d/ProjectStack3D.js - Диагональное расположение как на unveil.fr
 import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
@@ -44,17 +44,22 @@ const ProjectStackCard = React.memo(({
     
     const time = state.clock.elapsedTime;
     
-    // Базовая анимация позиции
-    groupRef.current.position.x = position[0];
-    groupRef.current.position.y = position[1] + Math.sin(time * 0.5 + index * 0.3) * 0.02;
-    groupRef.current.position.z = position[2];
+    // Целевые позиции
+    const targetX = position[0];
+    const targetY = position[1] + Math.sin(time * 0.5 + index * 0.3) * 0.02;
+    const targetZ = position[2];
     
-    // Базовая ротация
-    groupRef.current.rotation.x = rotation[0] + Math.sin(time * 0.3 + index * 0.2) * 0.01;
-    groupRef.current.rotation.y = rotation[1];
-    groupRef.current.rotation.z = rotation[2];
+    // Плавное движение к позиции
+    groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.05;
+    groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.05;
+    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * 0.05;
     
-    // Масштаб
+    // Ротация
+    groupRef.current.rotation.x += (rotation[0] - groupRef.current.rotation.x) * 0.05;
+    groupRef.current.rotation.y += (rotation[1] - groupRef.current.rotation.y) * 0.05;
+    groupRef.current.rotation.z += (rotation[2] - groupRef.current.rotation.z) * 0.05;
+    
+    // Масштаб при hover
     const targetScale = isActive ? scale * 1.1 : scale;
     groupRef.current.scale.setScalar(
       groupRef.current.scale.x + (targetScale - groupRef.current.scale.x) * 0.1
@@ -99,150 +104,176 @@ const ProjectStackCard = React.memo(({
   return (
     <group ref={groupRef}>
       
-      {/* Стеклянная рамка */}
-      <mesh position={[0, 0, -0.02]}>
-        <planeGeometry args={[4.2, 3.2]} />
-        <meshPhysicalMaterial
-          color="#ffffff"
+      {/* Тень карточки */}
+      <mesh position={[0.1, -0.1, -0.01]}>
+        <planeGeometry args={[4, 3]} />
+        <meshBasicMaterial
+          color="#000000"
           transparent
-          opacity={opacity * 0.1}
-          transmission={0.9}
-          thickness={0.1}
-          roughness={0.1}
-          clearcoat={1}
-          clearcoatRoughness={0.1}
-          ior={1.5}
-          reflectivity={0.1}
+          opacity={opacity * 0.15}
+          side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Основное изображение проекта */}
+      {/* Основная карточка - плоская плоскость */}
       <mesh
         onClick={handleClick}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
       >
         <planeGeometry args={[4, 3]} />
-        <meshPhysicalMaterial
+        <meshBasicMaterial
           map={texture}
           transparent
-          opacity={opacity * 0.95}
-          transmission={0.05}
-          thickness={0.01}
-          roughness={0.1}
-          clearcoat={0.5}
-          clearcoatRoughness={0.1}
-          ior={1.4}
-          reflectivity={0.05}
+          opacity={opacity}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Тонкая граница */}
+      {/* Граница карточки */}
       <mesh position={[0, 0, 0.001]}>
         <planeGeometry args={[4.05, 3.05]} />
         <meshBasicMaterial
-          color="#e2e8f0"
+          color="#ffffff"
           transparent
-          opacity={opacity * 0.3}
+          opacity={opacity * 0.8}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Отражение/тень на поверхности */}
-      <mesh position={[0.05, -0.05, -0.05]} rotation={[0, 0, 0]}>
-        <planeGeometry args={[4, 3]} />
-        <meshBasicMaterial
-          color="#000000"
-          transparent
-          opacity={opacity * 0.1}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
+      {/* Featured индикатор */}
+      {project.featured && (
+        <mesh position={[1.8, 1.3, 0.01]}>
+          <circleGeometry args={[0.08, 8]} />
+          <meshBasicMaterial
+            color="#0066ff"
+            transparent
+            opacity={opacity}
+          />
+        </mesh>
+      )}
     </group>
   );
 });
 
-// Основной компонент стека проектов
+// Основной компонент стека проектов - ДИАГОНАЛЬНОЕ РАСПОЛОЖЕНИЕ
 export const ProjectStack3D = ({ projects = [], onProjectClick, currentFilter = 'ALL' }) => {
   const groupRef = useRef();
   const [hoveredProject, setHoveredProject] = useState(null);
-  const [scrollOffset, setScrollOffset] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isScrolling, setIsScrolling] = useState(false);
 
-  // Обработка скролла для навигации по проектам
   useEffect(() => {
     const handleWheel = (event) => {
       event.preventDefault();
       
-      const scrollSpeed = 0.5;
-      const maxOffset = Math.max(0, projects.length - 1) * scrollSpeed;
+      // Предотвращаем слишком частые скроллы
+      if (isScrolling) return;
       
-      setScrollOffset(prev => {
-        const newOffset = prev + (event.deltaY > 0 ? scrollSpeed : -scrollSpeed);
-        return Math.max(0, Math.min(newOffset, maxOffset));
+      setIsScrolling(true);
+      
+      // Определяем направление скролла
+      const direction = event.deltaY > 0 ? 1 : -1;
+      
+      setCurrentPage(prev => {
+        const newPage = prev + direction;
+        return Math.max(0, Math.min(newPage, projects.length - 1));
       });
+      
+      // Разблокируем скролл через 300ms
+      setTimeout(() => {
+        setIsScrolling(false);
+      }, 300);
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
     return () => window.removeEventListener('wheel', handleWheel);
-  }, [projects.length]);
+  }, [projects.length, isScrolling]);
 
-  // Анимация позиций при скролле и hover
+  // Анимация группы - фокус на текущей странице
   useFrame((state) => {
     if (groupRef.current) {
-      // Плавное движение при скролле
-      const targetX = -scrollOffset;
-      groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.1;
+      // Смещение группы к текущей активной карточке
+      const targetX = -currentPage * 1.8 * 1.2; // baseSpacing * diagonalFactor
+      const targetY = -currentPage * 0.5;       // heightOffset
       
-      // Движение влево при hover
-      if (hoveredProject) {
-        groupRef.current.position.x += (targetX - 1 - groupRef.current.position.x) * 0.15;
-      }
+      groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.08;
+      groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.08;
+      
+      // Легкое покачивание
+      const time = state.clock.elapsedTime;
+      groupRef.current.rotation.z = Math.sin(time * 0.2) * 0.005;
     }
   });
 
-  // Расчет позиции каждой карточки в стеке
-  const getStackPosition = (index, total) => {
-    // Начинаем с правого верхнего угла и идем к левому нижнему
-    const progress = index / Math.max(total - 1, 1);
+  // НОВАЯ ФУНКЦИЯ: Диагональное каскадное расположение как на unveil.fr
+  const getDiagonalPosition = (index, total) => {
+    // Параметры диагонального расположения
+    const baseSpacing = 1.8;  // Базовое расстояние между карточками
+    const diagonalFactor = 1.2; // Коэффициент диагонали
+    const depthFactor = 0.8;    // Глубина по Z
+    const heightOffset = 0.5;   // Смещение по высоте
     
-    // Параметры раскладки - горизонтальная линия со смещением
-    const baseX = index * 1.2; // Горизонтальное расстояние между карточками
-    const startY = 2;  // Верх
-    const endY = -1;   // Низ
-    const startZ = 1;  // Ближе к камере
-    const endZ = -2;   // Дальше от камеры
-    
-    // Интерполяция позиций
-    const x = baseX;
-    const y = startY + (endY - startY) * progress;
-    const z = startZ + (endZ - startZ) * progress;
+    // Диагональное смещение - каждая следующая карточка правее и выше
+    const x = index * baseSpacing * diagonalFactor;
+    const y = index * heightOffset;
+    const z = -index * depthFactor; // Каждая следующая карточка дальше
     
     return [x, y, z];
   };
 
-  // Расчет ротации для каждой карточки
-  const getStackRotation = (index, total) => {
-    const progress = index / Math.max(total - 1, 1);
-    
-    // Небольшой наклон для эффекта стека
-    const rotX = -0.1 + progress * 0.2;
-    const rotY = 0.1 - progress * 0.2;
-    const rotZ = 0.05 - progress * 0.1;
+  // Расчет ротации для каскадного эффекта
+  const getDiagonalRotation = (index, total) => {
+    // Легкий наклон для каскадного эффекта
+    const rotationVariation = 0.05;
+    const rotX = (Math.sin(index * 0.5) * rotationVariation);
+    const rotY = (Math.cos(index * 0.3) * rotationVariation);
+    const rotZ = (index % 2 === 0 ? 1 : -1) * rotationVariation * 0.5;
     
     return [rotX, rotY, rotZ];
   };
 
-  // Расчет прозрачности
-  const getStackOpacity = (index, total) => {
-    const progress = index / Math.max(total - 1, 1);
-    return 0.4 + (1 - progress) * 0.6; // От 0.4 до 1.0
+  // Расчет масштаба - ближние карточки больше
+  const getDiagonalScale = (index, total) => {
+    const baseScale = 1.0;
+    const scaleReduction = 0.05; // Уменьшение для дальних карточек
+    return Math.max(0.7, baseScale - (index * scaleReduction));
   };
 
-  // Расчет масштаба
-  const getStackScale = (index, total) => {
-    const progress = index / Math.max(total - 1, 1);
-    return 0.7 + (1 - progress) * 0.3; // От 0.7 до 1.0
+  // Расчет прозрачности - дальние карточки прозрачнее
+  const getDiagonalOpacity = (index, total) => {
+    const baseOpacity = 1.0;
+    const opacityReduction = 0.08;
+    return Math.max(0.4, baseOpacity - (index * opacityReduction));
+  };
+
+  // Масштаб и прозрачность относительно текущей страницы
+  const getRelativeScale = (index) => {
+    const distance = Math.abs(index - currentPage);
+    const baseScale = getDiagonalScale(index, projects.length);
+    
+    // Текущая карточка больше, остальные меньше
+    if (index === currentPage) {
+      return baseScale * 1.2;
+    } else if (distance === 1) {
+      return baseScale * 0.9;
+    } else {
+      return baseScale * 0.7;
+    }
+  };
+
+  const getRelativeOpacity = (index) => {
+    const distance = Math.abs(index - currentPage);
+    const baseOpacity = getDiagonalOpacity(index, projects.length);
+    
+    // Текущая карточка ярче, остальные тусклее
+    if (index === currentPage) {
+      return 1.0;
+    } else if (distance === 1) {
+      return baseOpacity * 0.8;
+    } else {
+      return baseOpacity * 0.5;
+    }
   };
 
   const handleProjectHover = (project, isHovered) => {
@@ -252,11 +283,11 @@ export const ProjectStack3D = ({ projects = [], onProjectClick, currentFilter = 
   return (
     <group ref={groupRef}>
       {projects.map((project, index) => {
-        const position = getStackPosition(index, projects.length);
-        const rotation = getStackRotation(index, projects.length);
-        const opacity = getStackOpacity(index, projects.length);
-        const scale = getStackScale(index, projects.length);
-        const isActive = hoveredProject?.id === project.id;
+        const position = getDiagonalPosition(index, projects.length);
+        const rotation = getDiagonalRotation(index, projects.length);
+        const scale = getRelativeScale(index);
+        const opacity = getRelativeOpacity(index);
+        const isActive = hoveredProject?.id === project.id || index === currentPage;
 
         return (
           <ProjectStackCard
@@ -274,17 +305,28 @@ export const ProjectStack3D = ({ projects = [], onProjectClick, currentFilter = 
         );
       })}
 
-      {/* Дополнительные эффекты освещения для стеклянного эффекта */}
-      <pointLight position={[5, 5, 5]} intensity={0.3} color="#ffffff" />
-      <pointLight position={[-5, -5, 5]} intensity={0.2} color="#f1f5f9" />
-      
-      {/* Направленный свет для отражений */}
+      {/* Направленное освещение для лучшего отображения */}
       <directionalLight 
-        position={[2, 4, 3]} 
-        intensity={0.4} 
+        position={[5, 5, 5]} 
+        intensity={0.3} 
         color="#ffffff"
-        castShadow={false}
       />
+      <directionalLight 
+        position={[-3, 3, 2]} 
+        intensity={0.2} 
+        color="#f1f5f9"
+      />
+      
+      {/* Ambient свет для общего освещения */}
+      <ambientLight intensity={0.4} />
+
+      {/* Индикатор текущей страницы */}
+      <group position={[0, -4, 0]}>
+        <mesh>
+          <planeGeometry args={[0.5, 0.05]} />
+          <meshBasicMaterial color="#0066ff" />
+        </mesh>
+      </group>
     </group>
   );
 };

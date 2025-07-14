@@ -137,50 +137,6 @@ const Portfolio = () => {
       transition={{ duration: 0.4 }}
       className="min-h-screen bg-white"
     >
-      
-      {/* Header */}
-      <section className="pt-24 pb-8 px-6 lg:px-8">
-        <div className="max-w-screen-2xl mx-auto">
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h1 className="text-5xl lg:text-7xl font-light text-neutral-900 tracking-tight mb-4">
-              PROJECTS
-            </h1>
-            <p className="text-lg text-neutral-600 tracking-wide">
-              {filteredProjects.length} PROJECT{filteredProjects.length !== 1 ? 'S' : ''}
-            </p>
-          </motion.div>
-
-          {/* Фильтры */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="flex justify-center mb-8"
-          >
-            <div className="flex items-center space-x-8">
-              {['ALL', 'FEATURED', 'WEB', 'MOBILE', '3D'].map((filterName) => (
-                <button
-                  key={filterName}
-                  onClick={() => setFilter(filterName)}
-                  className={`text-sm font-medium tracking-wide transition-all duration-300 ${
-                    filter === filterName
-                      ? 'text-neutral-900 opacity-100'
-                      : 'text-neutral-400 opacity-70 hover:text-neutral-900 hover:opacity-100'
-                  }`}
-                >
-                  {filterName}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </section>
 
       {/* 3D Сцена со стеком проектов */}
       <section className="relative">
@@ -261,11 +217,6 @@ const Portfolio = () => {
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Инструкция для взаимодействия */}
-          <div className="absolute bottom-6 right-6 text-xs text-neutral-500 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-neutral-200">
-            Scroll to navigate • Click cards to view
-          </div>
         </motion.div>
       </section>
 
