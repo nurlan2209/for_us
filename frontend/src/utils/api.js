@@ -145,13 +145,6 @@ export const settingsAPI = {
   updateContact: (contactData) => api.put(endpoints.settings.updateContact, contactData),
 };
 
-/**
- * Health check
- */
-export const healthAPI = {
-  check: () => api.get(endpoints.health),
-};
-
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,

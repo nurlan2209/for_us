@@ -149,15 +149,6 @@
 }
 
 /* Catalog navigation */
-.catalog-nav-unveil {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 100;
-}
 
 .catalog-nav-dot {
   width: 8px;
@@ -179,20 +170,6 @@
 }
 
 /* Scroll indicators */
-.scroll-indicator-unveil {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: #71717a;
-  font-size: 12px;
-  font-weight: 500;
-  z-index: 100;
-}
 
 .scroll-arrow {
   width: 20px;
@@ -487,27 +464,6 @@
   margin-bottom: 16px;
 }
 
-/* Special effects for hero cards */
-.hero-card-unveil {
-  position: relative;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.hero-card-unveil::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #0066ff 0%, #00d4aa 100%);
-  border-radius: inherit;
-  z-index: -1;
-  margin: -2px;
-}
-
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .project-card-unveil {
@@ -579,6 +535,339 @@
   .project-card-unveil,
   .catalog-button-unveil,
   .tech-tag-unveil {
+    transition: none !important;
+  }
+}
+
+/* Стеклянный стек проектов в стиле unveil.fr */
+.glass-stack-container {
+  perspective: 2000px;
+  perspective-origin: center center;
+}
+
+/* Анимации для стеклянного эффекта */
+@keyframes glass-float {
+  0%, 100% { 
+    transform: translateY(0px) rotateZ(0deg);
+  }
+  33% { 
+    transform: translateY(-3px) rotateZ(0.5deg);
+  }
+  66% { 
+    transform: translateY(-1px) rotateZ(-0.3deg);
+  }
+}
+
+@keyframes glass-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes stack-entrance {
+  0% {
+    opacity: 0;
+    transform: translate3d(100px, -100px, 50px) rotateY(20deg) rotateX(-10deg);
+  }
+  60% {
+    opacity: 0.7;
+    transform: translate3d(20px, -20px, 10px) rotateY(5deg) rotateX(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateY(0deg) rotateX(0deg);
+  }
+}
+
+/* Эффекты освещения для стекла */
+.glass-card-surface {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-card-reflection {
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 70%
+  );
+  background-size: 200% 200%;
+  animation: glass-shimmer 3s ease-in-out infinite;
+}
+
+/* Улучшенные тени для глубины */
+.glass-stack-shadow {
+  filter: blur(8px);
+  opacity: 0.15;
+  transform: translate3d(2px, 2px, -10px);
+}
+
+/* Интерактивные состояния */
+.glass-card-interactive {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: none;
+}
+
+.glass-card-interactive:hover {
+  transform: translateZ(20px) scale(1.05);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Эффект преломления */
+.glass-refraction {
+  background: linear-gradient(
+    45deg,
+    rgba(59, 130, 246, 0.05) 0%,
+    rgba(147, 51, 234, 0.05) 50%,
+    rgba(236, 72, 153, 0.05) 100%
+  );
+  mix-blend-mode: overlay;
+}
+
+/* Частицы света для атмосферы */
+@keyframes light-particle {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0);
+  }
+}
+
+.light-particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: light-particle 2s ease-in-out infinite;
+}
+
+/* Улучшения для мобильных устройств */
+@media (max-width: 768px) {
+  .glass-stack-container {
+    perspective: 1000px;
+  }
+  
+  .glass-card-interactive:hover {
+    transform: translateZ(10px) scale(1.02);
+  }
+}
+
+/* Эффект стеклянного отражения для статуса проекта */
+.project-status-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-featured-glass {
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.2), rgba(0, 212, 170, 0.2));
+  color: #0066ff;
+  box-shadow: 0 4px 15px rgba(0, 102, 255, 0.2);
+}
+
+.status-published-glass {
+  background: rgba(0, 212, 170, 0.15);
+  color: #00d4aa;
+  box-shadow: 0 4px 15px rgba(0, 212, 170, 0.2);
+}
+
+/* Текстуры стекла для разных типов проектов */
+.glass-web-project {
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.05) 0%,
+    rgba(99, 102, 241, 0.05) 100%
+  );
+}
+
+.glass-mobile-project {
+  background: linear-gradient(
+    135deg,
+    rgba(236, 72, 153, 0.05) 0%,
+    rgba(251, 113, 133, 0.05) 100%
+  );
+}
+
+.glass-3d-project {
+  background: linear-gradient(
+    135deg,
+    rgba(168, 85, 247, 0.05) 0%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+}
+
+/* Анимация появления стека */
+.stack-entrance-animation {
+  animation: stack-entrance 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Эффект глубины для перспективы */
+.perspective-depth {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+/* Улучшенные градиенты для стеклянности */
+.glass-gradient-top {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+}
+
+.glass-gradient-edge {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+}
+
+/* Эффект каустики (преломления света) */
+@keyframes caustics {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  25% {
+    background-position: 100% 100%;
+  }
+  50% {
+    background-position: 0% 100%;
+  }
+  75% {
+    background-position: 100% 0%;
+  }
+}
+
+.glass-caustics {
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(255, 255, 255, 0.06) 0%, transparent 50%);
+  background-size: 300% 300%;
+  animation: caustics 8s ease-in-out infinite;
+}
+
+/* Подсветка краев стеклянных поверхностей */
+.glass-edge-light {
+  box-shadow: 
+    inset 1px 1px 0 rgba(255, 255, 255, 0.2),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Эффект размытия для фокуса/расфокуса */
+.glass-blur-focus {
+  filter: blur(0px);
+  transition: filter 0.3s ease;
+}
+
+.glass-blur-unfocus {
+  filter: blur(2px);
+  opacity: 0.7;
+}
+
+/* Специальные эффекты для hover состояний */
+.glass-hover-glow {
+  position: relative;
+}
+
+.glass-hover-glow::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(
+    45deg,
+    rgba(0, 102, 255, 0.3),
+    rgba(0, 212, 170, 0.3),
+    rgba(168, 85, 247, 0.3)
+  );
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  filter: blur(4px);
+  transition: opacity 0.3s ease;
+}
+
+.glass-hover-glow:hover::before {
+  opacity: 1;
+}
+
+/* Эффект "ледяного" стекла */
+.glass-frost {
+  background: 
+    radial-gradient(ellipse at top left, rgba(255, 255, 255, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse at bottom right, rgba(255, 255, 255, 0.1) 0%, transparent 70%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* Анимация для переходов между фильтрами */
+@keyframes filter-transition {
+  0% {
+    transform: scale(0.9) rotateY(10deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+.filter-transition-enter {
+  animation: filter-transition 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Специальные эффекты для режима пониженного движения */
+@media (prefers-reduced-motion: reduce) {
+  .glass-float,
+  .glass-shimmer,
+  .stack-entrance,
+  .light-particle,
+  .caustics,
+  .filter-transition {
+    animation: none !important;
+  }
+  
+  .glass-card-interactive {
     transition: none !important;
   }
 }

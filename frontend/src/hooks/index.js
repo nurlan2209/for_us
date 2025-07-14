@@ -1,5 +1,4 @@
 // frontend/src/hooks/index.js
-export { default as useAuth } from './useAuth';
 export { 
   useProjects, 
   useProject, 
@@ -15,7 +14,3 @@ export {
   useDeleteFile, 
   useDragAndDrop 
 } from './useUpload';
-export { 
-  useLocalStorage, 
-  useLocalStorageListener 
-} from './useLocalStorage';

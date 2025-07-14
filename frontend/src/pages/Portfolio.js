@@ -1,23 +1,24 @@
-// frontend/src/pages/Portfolio.js - Оптимизированная версия
+// frontend/src/pages/Portfolio.js - Обновленная версия со стеком
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from 'react-query';
 import { useNavigate } from 'react-router-dom';
+import * as THREE from 'three';
 import { projectsAPI } from '../utils/api';
 
-// Ленивая загрузка 3D компонента
-const ProjectCatalog3D = React.lazy(() => 
-  import('../components/3d/ProjectCatalog3D').then(module => ({
-    default: module.ProjectCatalog3D
+// Ленивая загрузка нового 3D компонента
+const ProjectStack3D = React.lazy(() => 
+  import('../components/3d/ProjectStack3D').then(module => ({
+    default: module.ProjectStack3D
   }))
 );
 
 // Простой лоадер для 3D сцены
 const Scene3DLoader = () => (
   <div className="flex items-center justify-center h-full">
-    <div className="loading-shimmer w-32 h-32 rounded-lg" />
+    <div className="w-12 h-12 border-2 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
   </div>
 );
 
@@ -36,7 +37,7 @@ const Portfolio = () => {
       select: (response) => response.data.projects,
       staleTime: 5 * 60 * 1000,
       refetchOnWindowFocus: false,
-      keepPreviousData: true, // Избегаем мерцания при обновлении
+      keepPreviousData: true,
     }
   );
 
@@ -56,7 +57,6 @@ const Portfolio = () => {
 
   // Предзагрузка критических ресурсов
   useEffect(() => {
-    // Предзагружаем следующие страницы
     if (filteredProjects.length > 0) {
       const firstProject = filteredProjects[0];
       const link = document.createElement('link');
@@ -182,38 +182,57 @@ const Portfolio = () => {
         </div>
       </section>
 
-      {/* 3D Сцена с плавной загрузкой */}
+      {/* 3D Сцена со стеком проектов */}
       <section className="relative">
         <motion.div 
           className="w-full bg-white"
-          style={{ height: '70vh', minHeight: '500px' }}
+          style={{ height: '80vh', minHeight: '600px' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <Canvas
             ref={canvasRef}
-            camera={{ position: [0, 2, 10], fov: 50 }}
-            onCreated={({ gl }) => {
+            camera={{ 
+              position: [0, 0, 8], 
+              fov: 60,
+              near: 0.1,
+              far: 1000 
+            }}
+            onCreated={({ gl, camera }) => {
               gl.setClearColor('#ffffff');
+              gl.physicallyCorrectLights = true;
+              gl.shadowMap.enabled = true;
+              gl.shadowMap.type = THREE.PCFSoftShadowMap;
               setIs3DReady(true);
             }}
             style={{ background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)' }}
           >
-            {/* Базовое освещение всегда доступно */}
-            <ambientLight intensity={0.8} />
+            {/* Улучшенное освещение для стеклянного эффекта */}
+            <ambientLight intensity={0.4} />
             <directionalLight
               position={[10, 10, 5]}
-              intensity={1}
+              intensity={0.8}
               castShadow
-              shadow-mapSize={[1024, 1024]}
+              shadow-mapSize={[2048, 2048]}
+              shadow-camera-near={0.5}
+              shadow-camera-far={50}
+              shadow-camera-left={-10}
+              shadow-camera-right={10}
+              shadow-camera-top={10}
+              shadow-camera-bottom={-10}
             />
             <pointLight position={[-10, -10, -5]} intensity={0.3} color="#f1f5f9" />
+            
+            {/* Дополнительное освещение для отражений */}
+            <pointLight position={[5, 5, 5]} intensity={0.4} color="#ffffff" />
+            <pointLight position={[-5, 5, -5]} intensity={0.2} color="#e2e8f0" />
 
-            {/* 3D компонент с Suspense */}
+            {/* 3D Стек проектов с Suspense */}
             <Suspense fallback={null}>
-              <ProjectCatalog3D 
+              <ProjectStack3D 
                 projects={filteredProjects}
+                currentFilter={filter}
                 onProjectClick={(project) => {
                   setHoveredProject(project);
                   navigate(`/portfolio/${project.id}`);
@@ -242,6 +261,11 @@ const Portfolio = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Инструкция для взаимодействия */}
+          <div className="absolute bottom-6 right-6 text-xs text-neutral-500 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-neutral-200">
+            Scroll to navigate • Click cards to view
+          </div>
         </motion.div>
       </section>
 
