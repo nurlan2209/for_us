@@ -1,4 +1,5 @@
-// backend/src/routes/projects.js
+// backend/src/routes/projects.js - Обновленная версия с поддержкой медиа и кнопок
+
 import express from 'express';
 import { z } from 'zod';
 import { 
@@ -14,13 +15,36 @@ import { deleteFile } from '../services/minio.js';
 const router = express.Router();
 
 // Validation schemas
+const mediaFileSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  url: z.string().url('Must be a valid URL'),
+  type: z.enum(['image', 'video', 'gif']),
+  name: z.string().optional(),
+  size: z.number().optional(),
+  caption: z.string().optional(),
+  thumbnail: z.string().url().optional(),
+  alt: z.string().optional(),
+});
+
+const customButtonSchema = z.object({
+  text: z.string().min(1, 'Button text required'),
+  url: z.string().url('Must be a valid URL'),
+});
+
 const projectSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title too long'),
   description: z.string().min(1, 'Description is required').max(1000, 'Description too long'),
   technologies: z.string().min(1, 'Technologies are required').max(200, 'Technologies list too long'),
+  
+  // Legacy support
   imageUrl: z.string().url('Must be a valid URL').optional(),
   projectUrl: z.string().url('Must be a valid URL').optional(),
   githubUrl: z.string().url('Must be a valid URL').optional(),
+  
+  // New fields
+  mediaFiles: z.array(mediaFileSchema).optional().default([]),
+  customButtons: z.array(customButtonSchema).optional().default([]),
+  
   featured: z.boolean().optional().default(false),
   status: z.enum(['draft', 'published', 'archived']).optional().default('published'),
   sortOrder: z.number().int().min(0).optional().default(0)
@@ -143,6 +167,16 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
     
     const projectData = validationResult.data;
     
+    // Ensure mediaFiles is initialized
+    if (!projectData.mediaFiles) {
+      projectData.mediaFiles = [];
+    }
+    
+    // Ensure customButtons is initialized
+    if (!projectData.customButtons) {
+      projectData.customButtons = [];
+    }
+    
     // Add project to database
     const newProject = await addProject(projectData);
     
@@ -239,17 +273,58 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     // Delete project from database
     const deletedProject = await deleteProject(projectId);
     
-    // Clean up associated files (if any)
+    // Clean up associated files
+    const filesToDelete = [];
+    
+    // Legacy image cleanup
     if (project.imageUrl && project.imageUrl.includes('minio')) {
       try {
-        // Extract filename from URL
         const urlParts = project.imageUrl.split('/');
         const fileName = urlParts[urlParts.length - 1];
         if (fileName) {
-          await deleteFile(`images/${fileName}`);
+          filesToDelete.push(`images/${fileName}`);
         }
       } catch (fileError) {
-        console.error('Error deleting project image:', fileError);
+        console.error('Error preparing legacy image for deletion:', fileError);
+      }
+    }
+    
+    // Media files cleanup
+    if (project.mediaFiles && Array.isArray(project.mediaFiles)) {
+      project.mediaFiles.forEach(mediaFile => {
+        if (mediaFile.url && mediaFile.url.includes('minio')) {
+          try {
+            const urlParts = mediaFile.url.split('/');
+            const fileName = urlParts[urlParts.length - 1];
+            if (fileName) {
+              filesToDelete.push(`images/${fileName}`);
+            }
+          } catch (fileError) {
+            console.error('Error preparing media file for deletion:', fileError);
+          }
+        }
+        
+        // Clean up thumbnails
+        if (mediaFile.thumbnail && mediaFile.thumbnail.includes('minio')) {
+          try {
+            const urlParts = mediaFile.thumbnail.split('/');
+            const fileName = urlParts[urlParts.length - 1];
+            if (fileName) {
+              filesToDelete.push(`images/${fileName}`);
+            }
+          } catch (fileError) {
+            console.error('Error preparing thumbnail for deletion:', fileError);
+          }
+        }
+      });
+    }
+    
+    // Delete files from MinIO
+    for (const fileName of filesToDelete) {
+      try {
+        await deleteFile(fileName);
+      } catch (fileError) {
+        console.error(`Error deleting file ${fileName}:`, fileError);
         // Don't fail the entire operation if file deletion fails
       }
     }

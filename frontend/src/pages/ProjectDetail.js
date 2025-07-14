@@ -1,45 +1,11 @@
-// frontend/src/pages/ProjectDetail.js
-import React, { useRef, useEffect } from 'react';
+// frontend/src/pages/ProjectDetail.js - Обновленная версия
+import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { motion } from 'framer-motion';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Float, Center, Html } from '@react-three/drei';
 import { projectsAPI } from '../utils/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
-
-// Минималистичный 3D компонент
-const Project3DShowcase = ({ project }) => {
-  return (
-    <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
-      <ambientLight intensity={0.8} />
-      <directionalLight position={[10, 10, 5]} intensity={0.5} />
-      <pointLight position={[-10, -10, -5]} intensity={0.3} color="#f1f5f9" />
-
-      <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[2.5, 1.8, 0.1]} />
-          <meshStandardMaterial
-            color="#ffffff"
-            roughness={0.1}
-            metalness={0.1}
-            transparent
-            opacity={0.9}
-          />
-        </mesh>
-      </Float>
-
-      <OrbitControls 
-        enableZoom={false} 
-        autoRotate 
-        autoRotateSpeed={0.5}
-        enablePan={false}
-        maxPolarAngle={Math.PI / 1.8}
-        minPolarAngle={Math.PI / 3}
-      />
-    </Canvas>
-  );
-};
+import MediaGallery from '../components/ui/MediaGallery';
 
 const ProjectDetail = () => {
   const { id } = useParams();
@@ -97,6 +63,12 @@ const ProjectDetail = () => {
   }
 
   const technologies = project.technologies.split(',').map(tech => tech.trim());
+  const mediaFiles = project.mediaFiles || (project.imageUrl ? [{ 
+    id: 1, 
+    url: project.imageUrl, 
+    type: 'image',
+    alt: project.title 
+  }] : []);
 
   return (
     <motion.div
@@ -105,45 +77,25 @@ const ProjectDetail = () => {
       transition={{ duration: 0.6 }}
       className="min-h-screen bg-white"
     >
-      
-      {/* Hero Section with 3D */}
-      <section className="relative pt-24 pb-16 px-6 lg:px-8 overflow-hidden">
-        
-        {/* 3D Background */}
-        <div className="absolute inset-0 z-0">
-          <Project3DShowcase project={project} />
-        </div>
-        
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/80 to-white/95 z-10" />
-        
-        {/* Navigation */}
-        <div className="absolute top-6 left-6 z-20">
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-white/90 backdrop-blur-sm border border-neutral-200 text-neutral-900 p-3 rounded-lg hover:bg-white transition-all duration-200 shadow-sm"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-        </div>
 
-        {/* Featured Badge */}
-        {project.featured && (
-          <div className="absolute top-6 right-6 z-20">
-            <div className="bg-neutral-900 text-white px-3 py-1 rounded-full text-xs font-medium tracking-wide uppercase">
-              Featured
-            </div>
+      {/* Featured Badge */}
+      {project.featured && (
+        <div className="fixed top-6 right-6 z-20">
+          <div className="bg-neutral-900 text-white px-3 py-1 rounded-full text-xs font-medium tracking-wide uppercase">
+            Featured
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Content */}
-        <div className="relative z-20 max-w-4xl mx-auto text-center pt-16">
+      {/* Project Info Block - Always at the top */}
+      <section className="pt-24 pb-16 px-6 lg:px-8 bg-white">
+        <div className="max-w-4xl mx-auto">
+          
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-16"
           >
             <h1 className="text-5xl lg:text-7xl font-light text-neutral-900 tracking-tight mb-6">
               {project.title}
@@ -153,90 +105,51 @@ const ProjectDetail = () => {
               {project.description}
             </p>
             
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              {project.projectUrl && (
-                <a
-                  href={project.projectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="catalog-button-unveil catalog-button-primary text-lg px-8 py-4"
+            {/* Technologies */}
+            <div className="flex flex-wrap justify-center gap-3 mb-12">
+              {technologies.map((tech, index) => (
+                <span
+                  key={index}
+                  className="tech-tag-unveil"
                 >
-                  View Project
-                </a>
-              )}
-              {project.githubUrl && (
-                <a
-                  href={project.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="catalog-button-unveil text-lg px-8 py-4"
-                >
-                  View Code
-                </a>
-              )}
+                  {tech}
+                </span>
+              ))}
             </div>
+
+            {/* Custom Buttons from Admin */}
+            {project.customButtons && project.customButtons.length > 0 && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                {project.customButtons.map((button, index) => (
+                  <a
+                    key={index}
+                    href={button.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`text-lg px-8 py-4 ${
+                      index === 0 
+                        ? 'catalog-button-unveil catalog-button-primary' 
+                        : 'catalog-button-unveil'
+                    }`}
+                  >
+                    {button.text}
+                  </a>
+                ))}
+              </div>
+            )}
           </motion.div>
-        </div>
-      </section>
 
-      {/* Project Image */}
-      {project.imageUrl && (
-        <section className="py-16 px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="relative rounded-2xl overflow-hidden shadow-card border border-neutral-200"
-            >
-              <img
-                src={project.imageUrl}
-                alt={project.title}
-                className="w-full h-auto"
-              />
-            </motion.div>
-          </div>
-        </section>
-      )}
-
-      {/* Project Details */}
-      <section className="py-16 px-6 lg:px-8 bg-neutral-50">
-        <div className="max-w-4xl mx-auto">
-          
+          {/* Project Details Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
             
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-12">
               
-              {/* Technologies */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                viewport={{ once: true }}
-              >
-                <h2 className="text-2xl font-light text-neutral-900 tracking-tight mb-6">
-                  Technologies
-                </h2>
-                <div className="flex flex-wrap gap-3">
-                  {technologies.map((tech, index) => (
-                    <span
-                      key={index}
-                      className="tech-tag-unveil"
-                    >
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-
               {/* About */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
+                transition={{ duration: 0.6 }}
                 viewport={{ once: true }}
               >
                 <h2 className="text-2xl font-light text-neutral-900 tracking-tight mb-6">
@@ -257,9 +170,9 @@ const ProjectDetail = () => {
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
                 viewport={{ once: true }}
-                className="bg-white p-6 rounded-xl border border-neutral-200"
+                className="bg-neutral-50 p-6 rounded-xl border border-neutral-200"
               >
                 <h3 className="text-lg font-light text-neutral-900 mb-6">
                   Project Details
@@ -307,48 +220,18 @@ const ProjectDetail = () => {
                   </div>
                 </div>
               </motion.div>
-
-              {/* Links */}
-              {(project.projectUrl || project.githubUrl) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.3 }}
-                  viewport={{ once: true }}
-                  className="bg-white p-6 rounded-xl border border-neutral-200"
-                >
-                  <h3 className="text-lg font-light text-neutral-900 mb-6">
-                    Project Links
-                  </h3>
-                  
-                  <div className="space-y-3">
-                    {project.projectUrl && (
-                      <a
-                        href={project.projectUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block w-full catalog-button-unveil catalog-button-primary text-center"
-                      >
-                        View Live Project
-                      </a>
-                    )}
-                    {project.githubUrl && (
-                      <a
-                        href={project.githubUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block w-full catalog-button-unveil text-center"
-                      >
-                        View Source Code
-                      </a>
-                    )}
-                  </div>
-                </motion.div>
-              )}
             </div>
           </div>
         </div>
       </section>
+
+      {/* Media Gallery - Full Screen */}
+      {mediaFiles && mediaFiles.length > 0 && (
+        <MediaGallery 
+          mediaFiles={mediaFiles} 
+          projectTitle={project.title}
+        />
+      )}
 
       {/* Back to Projects */}
       <section className="py-16 px-6 lg:px-8 bg-white">

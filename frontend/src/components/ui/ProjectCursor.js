@@ -1,5 +1,6 @@
-// frontend/src/components/ui/ProjectCursor.js
+// frontend/src/components/ui/ProjectCursor.js - Исправленная версия
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 
 // Простое глобальное состояние без частых обновлений
 let cursorState = {
@@ -20,8 +21,17 @@ window.updateProjectCursor = (updates) => {
   }
 };
 
+// Функция для принудительного скрытия курсора
+window.hideProjectCursor = () => {
+  cursorState.show = false;
+  if (updateCallback) {
+    updateCallback(cursorState);
+  }
+};
+
 const ProjectCursor = () => {
   const [state, setState] = useState(cursorState);
+  const location = useLocation();
 
   // Мемоизированный callback для обновления состояния
   const updateState = useCallback((newState) => {
@@ -48,6 +58,23 @@ const ProjectCursor = () => {
       updateCallback = null;
     };
   }, [updateState]);
+
+  // Скрываем курсор при смене страницы
+  useEffect(() => {
+    // Скрываем курсор на всех страницах кроме главной (каталог проектов)
+    if (location.pathname !== '/') {
+      window.hideProjectCursor();
+      document.body.style.cursor = 'auto';
+    }
+  }, [location.pathname]);
+
+  // Очистка курсора при размонтировании
+  useEffect(() => {
+    return () => {
+      window.hideProjectCursor();
+      document.body.style.cursor = 'auto';
+    };
+  }, []);
 
   // Не рендерим, если курсор не активен
   if (!state.show) return null;
