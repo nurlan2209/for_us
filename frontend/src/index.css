@@ -380,3 +380,206 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Оптимизация скролла для Mac тачпада */
+.canvas-container {
+  cursor: auto; /* Возвращаем обычный курсор */
+  position: relative;
+  /* Предотвращаем нежелательное поведение скролла */
+  overscroll-behavior: none;
+  touch-action: none;
+  /* Улучшаем производительность рендеринга */
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.canvas-container canvas {
+  cursor: auto !important; /* Возвращаем обычный курсор для canvas */
+  display: block;
+  outline: none;
+  /* Отключаем стандартное поведение скролла */
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+/* Специальная оптимизация для macOS */
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  .canvas-container {
+    /* Оптимизация для WebKit (Safari/Chrome на Mac) */
+    -webkit-backface-visibility: hidden;
+    -webkit-transform: translateZ(0);
+  }
+}
+
+/* Предотвращаем скролл страницы при взаимодействии с 3D сценой */
+.portfolio-3d-scene {
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Улучшенная производительность анимаций */
+.project-3d-card {
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Оптимизация для тачпада Mac */
+@media (pointer: fine) {
+  .canvas-container {
+    /* Более точное управление для точных указательных устройств (мышь, тачпад) */
+    scroll-behavior: auto;
+  }
+}
+
+/* Специфические стили для предотвращения лагов на Mac */
+@media screen and (-webkit-min-device-pixel-ratio: 1.5) {
+  .canvas-container {
+    /* Оптимизация для Retina дисплеев */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Дополнительные стили для навигационных элементов */
+.project-navigation-dots {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(212, 212, 216, 0.6);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nav-dot.active {
+  background: #0066ff;
+  transform: scale(1.2);
+}
+
+.nav-dot:hover {
+  background: rgba(161, 161, 170, 0.8);
+  transform: scale(1.1);
+}
+
+/* Улучшения для плавности анимаций */
+@keyframes smooth-rotate {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+.carousel-smooth-transition {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Контрольные подсказки для пользователя */
+.scroll-hint {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: #52525b;
+  opacity: 0.8;
+  z-index: 10;
+  pointer-events: none;
+  animation: fade-in-out 6s ease-in-out infinite;
+}
+
+@keyframes fade-in-out {
+  0%, 100% { opacity: 0; }
+  20%, 80% { opacity: 0.8; }
+}
+
+/* Оптимизация для пониженного движения */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-container,
+  .project-3d-card,
+  .carousel-smooth-transition {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .scroll-hint {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* Дополнительная оптимизация для старых браузеров */
+@supports not (overscroll-behavior: none) {
+  .canvas-container {
+    overflow: hidden;
+  }
+  
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* Улучшенная типографика для подсказок */
+.project-title-overlay {
+  position: absolute;
+  bottom: 4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.project-title-overlay.visible {
+  opacity: 1;
+}
+
+/* Стили для индикатора загрузки 3D */
+.loading-3d-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  z-index: 20;
+}
+
+.loading-spinner-3d {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #0066ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

@@ -1,4 +1,4 @@
-// frontend/src/pages/Portfolio.js - Обновленная версия со стеком
+// frontend/src/pages/Portfolio.js - Исправленная полная версия
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -8,24 +8,58 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { projectsAPI } from '../utils/api';
 
-// Ленивая загрузка нового 3D компонента
+// Ленивая загрузка оптимизированного 3D компонента
 const ProjectStack3D = React.lazy(() => 
   import('../components/3d/ProjectStack3D').then(module => ({
     default: module.ProjectStack3D
   }))
 );
 
-// Простой лоадер для 3D сцены
+// Улучшенный лоадер для 3D сцены
 const Scene3DLoader = () => (
-  <div className="flex items-center justify-center h-full">
-    <div className="w-12 h-12 border-2 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
+  <div className="loading-3d-indicator">
+    <div className="loading-spinner-3d" />
+    <p className="text-sm text-neutral-600 font-medium">Loading 3D Scene...</p>
   </div>
 );
+
+// Компонент подсказок для пользователя
+const ScrollHints = ({ show = true }) => {
+  const [visible, setVisible] = useState(show);
+
+  useEffect(() => {
+    if (show) {
+      const timer = setTimeout(() => setVisible(false), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [show]);
+
+  if (!visible) return null;
+
+  return (
+    <>
+      <div className="scroll-hint">
+        🖱️ Scroll or use ← → arrows to navigate
+      </div>
+      <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 text-center z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 0.6, y: 0 }}
+          transition={{ duration: 1, delay: 1 }}
+          className="text-xs text-neutral-500 bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full"
+        >
+          Scroll to explore projects
+        </motion.div>
+      </div>
+    </>
+  );
+};
 
 const Portfolio = () => {
   const [filter, setFilter] = useState('ALL');
   const [hoveredProject, setHoveredProject] = useState(null);
   const [is3DReady, setIs3DReady] = useState(false);
+  const [showHints, setShowHints] = useState(true);
   const navigate = useNavigate();
   const canvasRef = useRef();
 
@@ -65,6 +99,21 @@ const Portfolio = () => {
       document.head.appendChild(link);
     }
   }, [filteredProjects]);
+
+  // Скрываем подсказки при первом взаимодействии
+  useEffect(() => {
+    const handleInteraction = () => {
+      setShowHints(false);
+    };
+
+    window.addEventListener('wheel', handleInteraction, { once: true });
+    window.addEventListener('keydown', handleInteraction, { once: true });
+    
+    return () => {
+      window.removeEventListener('wheel', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+    };
+  }, []);
 
   // Показываем ошибку без черного экрана
   if (error) {
@@ -135,14 +184,14 @@ const Portfolio = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="min-h-screen bg-white"
+      className="min-h-screen bg-white overflow-hidden"
     >
 
-      {/* 3D Сцена со стеком проектов */}
-      <section className="relative">
+      {/* 3D Сцена с оптимизированным скроллом */}
+      <section className="portfolio-3d-scene relative">
         <motion.div 
-          className="w-full bg-white"
-          style={{ height: '80vh', minHeight: '600px' }}
+          className="canvas-container w-full bg-white"
+          style={{ height: '100vh' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
@@ -160,9 +209,15 @@ const Portfolio = () => {
               gl.physicallyCorrectLights = true;
               gl.shadowMap.enabled = true;
               gl.shadowMap.type = THREE.PCFSoftShadowMap;
+              
+              // Оптимизация рендеринга для Mac
+              gl.powerPreference = "high-performance";
+              gl.antialias = true;
+              
               setIs3DReady(true);
             }}
             style={{ background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)' }}
+            dpr={Math.min(window.devicePixelRatio, 2)} // Ограничиваем DPR для производительности
           >
             {/* Улучшенное освещение для стеклянного эффекта */}
             <ambientLight intensity={0.4} />
@@ -170,7 +225,7 @@ const Portfolio = () => {
               position={[10, 10, 5]}
               intensity={0.8}
               castShadow
-              shadow-mapSize={[2048, 2048]}
+              shadow-mapSize={[1024, 1024]} // Уменьшено для производительности
               shadow-camera-near={0.5}
               shadow-camera-far={50}
               shadow-camera-left={-10}
@@ -179,12 +234,10 @@ const Portfolio = () => {
               shadow-camera-bottom={-10}
             />
             <pointLight position={[-10, -10, -5]} intensity={0.3} color="#f1f5f9" />
-            
-            {/* Дополнительное освещение для отражений */}
             <pointLight position={[5, 5, 5]} intensity={0.4} color="#ffffff" />
             <pointLight position={[-5, 5, -5]} intensity={0.2} color="#e2e8f0" />
 
-            {/* 3D Стек проектов с Suspense */}
+            {/* 3D Стек проектов с оптимизированным скроллом */}
             <Suspense fallback={null}>
               <ProjectStack3D 
                 projects={filteredProjects}
@@ -196,6 +249,7 @@ const Portfolio = () => {
               />
             </Suspense>
 
+            {/* Отключаем OrbitControls чтобы не мешать скроллу */}
             <OrbitControls
               enableZoom={false}
               enablePan={false}
@@ -217,10 +271,86 @@ const Portfolio = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Подсказки для пользователя */}
+          <ScrollHints show={showHints && is3DReady} />
+
         </motion.div>
       </section>
 
-      {/* Информация о проекте при наведении */}
+      {/* Информация о текущем проекте - компактная версия */}
+      <AnimatePresence>
+        {hoveredProject && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            transition={{ duration: 0.4 }}
+            className="project-title-overlay visible"
+          >
+            <h3 className="font-medium">{hoveredProject.title}</h3>
+            <p className="text-sm opacity-80 mt-1">
+              {hoveredProject.technologies.split(',').slice(0, 3).join(', ')}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Фильтры проектов */}
+      <div className="fixed top-20 right-6 z-20 bg-white/90 backdrop-blur-sm rounded-lg border border-neutral-200 p-2">
+        <div className="flex flex-col gap-1">
+          {['ALL', 'FEATURED', 'WEB', '3D', 'MOBILE'].map((filterOption) => (
+            <button
+              key={filterOption}
+              onClick={() => setFilter(filterOption)}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                filter === filterOption
+                  ? 'bg-neutral-900 text-white'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+              }`}
+            >
+              {filterOption}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Navigation подсказки под статистикой */}
+      <div className="fixed bottom-6 left-6 z-20 space-y-2">
+        {/* Статистика проектов */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          className="bg-white/90 backdrop-blur-sm rounded-lg border border-neutral-200 p-3"
+        >
+          <div className="text-xs text-neutral-600">
+            <div className="font-medium text-neutral-900 mb-1">
+              {filteredProjects.length} Project{filteredProjects.length !== 1 ? 's' : ''}
+            </div>
+            <div>
+              {filteredProjects.filter(p => p.featured).length} Featured
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Navigation подсказки */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.8 }}
+          transition={{ duration: 0.6 }}
+          className="bg-white/90 backdrop-blur-sm rounded-lg border border-neutral-200 p-3"
+        >
+          <div className="text-xs text-neutral-500 space-y-1">
+            <div className="font-medium text-neutral-700 mb-2">Navigation:</div>
+            <div>🖱️ Scroll to rotate</div>
+            <div>← → Arrow keys</div>
+            <div>Click to view project</div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Информация о проекте при наведении - полная версия */}
       <AnimatePresence>
         {hoveredProject && (
           <motion.section
@@ -228,19 +358,19 @@ const Portfolio = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 30 }}
             transition={{ duration: 0.4 }}
-            className="py-16 px-6 lg:px-8 bg-white border-t border-neutral-100"
+            className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-neutral-200 p-6 z-30"
           >
             <div className="max-w-4xl mx-auto text-center">
               
-              <h2 className="text-4xl lg:text-5xl font-light text-neutral-900 tracking-tight mb-6">
+              <h2 className="text-2xl lg:text-3xl font-light text-neutral-900 tracking-tight mb-4">
                 {hoveredProject.title}
               </h2>
               
-              <p className="text-lg text-neutral-600 leading-relaxed mb-8 max-w-2xl mx-auto">
+              <p className="text-neutral-600 leading-relaxed mb-6 max-w-2xl mx-auto">
                 {hoveredProject.description}
               </p>
               
-              <div className="flex flex-wrap justify-center gap-3 mb-8">
+              <div className="flex flex-wrap justify-center gap-2 mb-6">
                 {hoveredProject.technologies.split(',').map((tech, index) => (
                   <span key={index} className="tech-tag-unveil">
                     {tech.trim()}
@@ -248,7 +378,7 @@ const Portfolio = () => {
                 ))}
               </div>
               
-              <div className="flex justify-center space-x-4">
+              <div className="flex justify-center space-x-4 flex-wrap gap-2">
                 {hoveredProject.projectUrl && (
                   <a
                     href={hoveredProject.projectUrl}
@@ -280,6 +410,11 @@ const Portfolio = () => {
           </motion.section>
         )}
       </AnimatePresence>
+
+      {/* Дополнительная информация о управлении - УДАЛЕНО, перенесено под статистику */}
+
+      {/* Индикатор производительности - УДАЛЕН, заменен на навигацию под статистикой */}
+
     </motion.div>
   );
 };

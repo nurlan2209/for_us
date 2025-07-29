@@ -1,5 +1,6 @@
-// frontend/src/components/3d/ProjectStack3D.js - Простая 3D карусель
-import React, { useRef, useState, useEffect } from 'react';
+// frontend/src/components/3d/ProjectStack3D.js - Обновленная версия с оптимизированным скроллом
+
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +17,6 @@ const ProjectCarouselCard = React.memo(({
   const groupRef = useRef();
   const navigate = useNavigate();
 
-  // URL текстуры
   const textureUrl = project.imageUrl || `data:image/svg+xml;base64,${btoa(`
     <svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="400" height="300" fill="#f8fafc"/>
@@ -25,7 +25,6 @@ const ProjectCarouselCard = React.memo(({
     </svg>
   `)}`;
 
-  // Загружаем текстуру
   const texture = useTexture(textureUrl, (texture) => {
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.minFilter = THREE.LinearFilter;
@@ -33,18 +32,15 @@ const ProjectCarouselCard = React.memo(({
     texture.flipY = true;
   });
 
-  // Плавная анимация к позиции + поворот к камере
   useFrame((state) => {
     if (!groupRef.current) return;
     
     const time = state.clock.elapsedTime;
     
-    // Плавное движение к целевой позиции
     groupRef.current.position.x += (position[0] - groupRef.current.position.x) * 0.1;
     groupRef.current.position.y += (position[1] + Math.sin(time + index) * 0.05 - groupRef.current.position.y) * 0.1;
     groupRef.current.position.z += (position[2] - groupRef.current.position.z) * 0.1;
     
-    // КАРТОЧКА ВСЕГДА СМОТРИТ НА КАМЕРУ
     if (meshRef.current && state.camera) {
       meshRef.current.lookAt(state.camera.position);
     }
@@ -71,7 +67,8 @@ const ProjectCarouselCard = React.memo(({
       });
     }
     
-    document.body.style.cursor = 'none';
+    // Показываем обычный курсор в 3D зоне
+    document.body.style.cursor = 'pointer';
   };
 
   const handlePointerLeave = (event) => {
@@ -82,12 +79,12 @@ const ProjectCarouselCard = React.memo(({
       window.updateProjectCursor({ show: false });
     }
     
+    // Возвращаем обычный курсор
     document.body.style.cursor = 'auto';
   };
 
   return (
     <group ref={groupRef}>
-      {/* Простая карточка - только изображение */}
       <mesh
         ref={meshRef}
         onClick={handleClick}
@@ -101,7 +98,6 @@ const ProjectCarouselCard = React.memo(({
         />
       </mesh>
 
-      {/* Featured индикатор */}
       {project.featured && (
         <mesh position={[1.3, 1.0, 0.01]}>
           <circleGeometry args={[0.06, 8]} />
@@ -112,73 +108,197 @@ const ProjectCarouselCard = React.memo(({
   );
 });
 
-// 3D Карусель проектов
-export const ProjectStack3D = ({ projects = [], onProjectClick }) => {
-  const groupRef = useRef();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [rotation, setRotation] = useState(0);
-  const [hoveredProject, setHoveredProject] = useState(null);
+// Утилита для детекции Mac
+const isMacOS = () => {
+  return typeof navigator !== 'undefined' && 
+         /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+};
 
-  // Автоматическое вращение карусели
-  useFrame((state) => {
-    if (groupRef.current) {
-      // Целевой угол поворота
-      const targetRotation = (currentIndex * Math.PI * 2) / projects.length;
-      
-      // Плавный поворот к целевому углу
-      const currentRotation = groupRef.current.rotation.y;
-      let rotationDiff = targetRotation - currentRotation;
-      
-      // Обработка перехода через 0/2π
-      if (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
-      if (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
-      
-      groupRef.current.rotation.y += rotationDiff * 0.08;
-      
-      // Легкое покачивание
-      const time = state.clock.elapsedTime;
-      groupRef.current.position.y = Math.sin(time * 0.5) * 0.1;
-    }
+// Утилита для нормализации deltaY на разных платформах
+const normalizeDeltaY = (deltaY, deltaMode) => {
+  // deltaMode: 0 = pixel, 1 = line, 2 = page
+  let normalizedDelta = deltaY;
+  
+  if (deltaMode === 1) {
+    // Line mode - умножаем на высоту строки
+    normalizedDelta = deltaY * 16;
+  } else if (deltaMode === 2) {
+    // Page mode - умножаем на высоту страницы
+    normalizedDelta = deltaY * window.innerHeight;
+  }
+  
+  return normalizedDelta;
+};
+
+// Оптимизированный обработчик скролла для Mac тачпада
+const useOptimizedScroll = (onScroll, projects) => {
+  const scrollState = useRef({
+    isScrolling: false,
+    scrollTimeout: null,
+    accumulator: 0,
+    lastTime: 0,
+    velocity: 0,
+    direction: 0
   });
 
-  // Управление с клавиатуры
+  const handleWheel = useCallback((event) => {
+    event.preventDefault();
+    
+    const now = Date.now();
+    const deltaTime = now - scrollState.current.lastTime;
+    scrollState.current.lastTime = now;
+
+    // Нормализуем deltaY для разных режимов
+    let normalizedDelta = normalizeDeltaY(event.deltaY, event.deltaMode);
+    
+    // Специальная обработка для Mac тачпада
+    if (isMacOS()) {
+      // На Mac тачпад генерирует много мелких событий
+      // Уменьшаем чувствительность и добавляем аккумуляцию
+      normalizedDelta *= 0.3; // Снижаем чувствительность
+      
+      // Игнорируем очень маленькие движения (шум тачпада)
+      if (Math.abs(normalizedDelta) < 1) {
+        return;
+      }
+    } else {
+      // Для мыши - стандартная обработка
+      normalizedDelta *= 0.5;
+    }
+
+    // Определяем направление
+    const newDirection = normalizedDelta > 0 ? 1 : -1;
+    
+    // Аккумулируем скролл
+    scrollState.current.accumulator += normalizedDelta;
+    scrollState.current.velocity = normalizedDelta / Math.max(deltaTime, 16);
+    
+    // Пороговое значение для переключения проекта
+    const threshold = isMacOS() ? 25 : 50;
+    
+    if (Math.abs(scrollState.current.accumulator) >= threshold) {
+      const steps = Math.floor(Math.abs(scrollState.current.accumulator) / threshold);
+      const direction = scrollState.current.accumulator > 0 ? 1 : -1;
+      
+      // Вызываем колбэк с количеством шагов
+      onScroll(direction, steps);
+      
+      // Сбрасываем аккумулятор
+      scrollState.current.accumulator = 0;
+    }
+
+    // Throttling для предотвращения слишком частых обновлений
+    if (!scrollState.current.isScrolling) {
+      scrollState.current.isScrolling = true;
+      
+      // Очищаем предыдущий таймаут
+      if (scrollState.current.scrollTimeout) {
+        clearTimeout(scrollState.current.scrollTimeout);
+      }
+      
+      // Устанавливаем новый таймаут
+      scrollState.current.scrollTimeout = setTimeout(() => {
+        scrollState.current.isScrolling = false;
+        scrollState.current.accumulator = 0; // Сбрасываем остаток
+      }, isMacOS() ? 150 : 100);
+    }
+  }, [onScroll]);
+
+  useEffect(() => {
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      if (scrollState.current.scrollTimeout) {
+        clearTimeout(scrollState.current.scrollTimeout);
+      }
+    };
+  }, [handleWheel]);
+};
+
+// Оптимизированный хук для управления клавиатурой
+const useKeyboardNavigation = (onNavigate, projects) => {
   useEffect(() => {
     const handleKeyDown = (event) => {
+      // Проверяем, что фокус не на input/textarea
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
       switch (event.key) {
         case 'ArrowLeft':
           event.preventDefault();
-          setCurrentIndex(prev => (prev - 1 + projects.length) % projects.length);
+          onNavigate(-1);
           break;
         case 'ArrowRight':
           event.preventDefault();
-          setCurrentIndex(prev => (prev + 1) % projects.length);
+          onNavigate(1);
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [projects.length]);
+  }, [onNavigate, projects.length]);
+};
 
-  // Управление скроллом
-  useEffect(() => {
-    const handleWheel = (event) => {
-      event.preventDefault();
+// 3D Стек проектов с оптимизированным скроллом
+export const ProjectStack3D = ({ projects = [], onProjectClick }) => {
+  const groupRef = useRef();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [hoveredProject, setHoveredProject] = useState(null);
+
+  // Оптимизированная функция навигации
+  const navigate = useCallback((direction, steps = 1) => {
+    if (isTransitioning || projects.length === 0) return;
+    
+    setIsTransitioning(true);
+    
+    let newIndex;
+    const totalSteps = direction * steps;
+    newIndex = (currentIndex + totalSteps + projects.length) % projects.length;
+    
+    setCurrentIndex(newIndex);
+    
+    // Сбрасываем флаг транзиции с задержкой
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300); // Время должно соответствовать анимации вращения
+    
+  }, [currentIndex, projects.length, isTransitioning]);
+
+  // Подключаем оптимизированный скролл
+  useOptimizedScroll(navigate, projects);
+  
+  // Подключаем клавиатурную навигацию
+  useKeyboardNavigation(navigate, projects);
+
+  // Плавная анимация карусели
+  useFrame((state) => {
+    if (groupRef.current && projects.length > 0) {
+      const targetRotation = -(currentIndex * Math.PI * 2) / projects.length;
+      const currentRotation = groupRef.current.rotation.y;
       
-      if (event.deltaY > 0) {
-        setCurrentIndex(prev => (prev + 1) % projects.length);
-      } else {
-        setCurrentIndex(prev => (prev - 1 + projects.length) % projects.length);
-      }
-    };
+      // Вычисляем кратчайший путь поворота
+      let rotationDiff = targetRotation - currentRotation;
+      
+      // Нормализуем разность угла
+      while (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
+      while (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
+      
+      // Применяем плавное вращение
+      const rotationSpeed = isTransitioning ? 0.12 : 0.08;
+      groupRef.current.rotation.y += rotationDiff * rotationSpeed;
+      
+      // Легкое покачивание
+      const time = state.clock.elapsedTime;
+      groupRef.current.position.y = Math.sin(time * 0.5) * 0.05;
+    }
+  });
 
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    return () => window.removeEventListener('wheel', handleWheel);
-  }, [projects.length]);
-
-  // Расчет позиций карточек в круге (без ротации)
   const getCarouselPosition = (index) => {
-    const radius = 4; // Радиус карусели
+    const radius = 4;
     const angle = (index * Math.PI * 2) / projects.length;
     
     const x = Math.sin(angle) * radius;
@@ -191,6 +311,10 @@ export const ProjectStack3D = ({ projects = [], onProjectClick }) => {
   const handleProjectHover = (project, isHovered) => {
     setHoveredProject(isHovered ? project : null);
   };
+
+  if (projects.length === 0) {
+    return null;
+  }
 
   return (
     <>
@@ -212,21 +336,24 @@ export const ProjectStack3D = ({ projects = [], onProjectClick }) => {
         })}
       </group>
 
-      {/* Освещение */}
+      {/* Улучшенное освещение */}
       <ambientLight intensity={0.6} />
       <directionalLight position={[0, 5, 5]} intensity={0.4} />
+      <pointLight position={[-5, 3, -5]} intensity={0.3} color="#e2e8f0" />
 
       {/* Навигационные точки */}
       <group position={[0, -3, 0]}>
         {projects.map((_, index) => (
           <mesh
             key={index}
-            position={[(index - projects.length / 2) * 0.3, 0, 0]}
-            onClick={() => setCurrentIndex(index)}
+            position={[(index - projects.length / 2) * 0.4, 0, 0]}
+            onClick={() => !isTransitioning && setCurrentIndex(index)}
           >
-            <sphereGeometry args={[0.05, 8, 8]} />
+            <sphereGeometry args={[0.04, 8, 8]} />
             <meshBasicMaterial 
               color={index === currentIndex ? "#0066ff" : "#d4d4d8"}
+              transparent
+              opacity={index === currentIndex ? 1 : 0.6}
             />
           </mesh>
         ))}
