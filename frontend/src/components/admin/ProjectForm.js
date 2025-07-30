@@ -1,4 +1,4 @@
-// frontend/src/components/admin/ProjectForm.js - Без featured + предзаполнение при редактировании
+// frontend/src/components/admin/ProjectForm.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -14,7 +14,6 @@ const projectSchema = z.object({
   description: z.string().min(1, 'Description required').max(1000, 'Description too long'),
   technologies: z.string().min(1, 'Technologies required').max(200, 'Technologies list too long'),
   category: z.string().min(1, 'Category required').max(50, 'Category name too long'),
-  // ❌ УДАЛЕНО: featured: z.boolean().default(false),
   status: z.enum(['draft', 'published', 'archived']).default('draft'),
   sortOrder: z.number().int().min(0).default(0),
   customButtons: z.array(z.object({
@@ -32,6 +31,25 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
   const queryClient = useQueryClient();
 
   const isEditing = !!project?.id;
+
+  console.log('🔍 ProjectForm props:', { project, isEditing });
+
+  // ✅ ДОБАВЛЯЕМ: Запрос полных данных проекта для редактирования
+  const { data: fullProject, isLoading: isLoadingProject } = useQuery(
+    ['project-detail', project?.id],
+    () => projectsAPI.getById(project.id),
+    {
+      enabled: isEditing && !!project?.id,
+      select: (response) => response.data.project,
+      onSuccess: (data) => {
+        console.log('✅ Загружены полные данные проекта:', data);
+      },
+      onError: (error) => {
+        console.error('❌ Ошибка загрузки проекта:', error);
+        toast.error('Ошибка загрузки данных проекта');
+      }
+    }
+  );
 
   // Получаем существующие категории
   const { data: categoriesData } = useQuery(
@@ -60,7 +78,6 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       description: '',
       technologies: '',
       category: '',
-      // ❌ УДАЛЕНО: featured: false,
       status: 'draft',
       sortOrder: 0,
       customButtons: [],
@@ -74,33 +91,49 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
 
   const watchedCategory = watch('category');
 
-  // ✅ ИСПРАВЛЕНО: Правильное предзаполнение формы при редактировании
+  // ✅ ИСПРАВЛЕНО: Предзаполнение формы данными проекта
   useEffect(() => {
-    if (project && isEditing) {
-      console.log('Заполняем форму данными проекта:', project);
+    // Используем либо полные данные из запроса, либо переданные props
+    const projectData = isEditing ? (fullProject || project) : null;
+    
+    if (projectData && isEditing) {
+      console.log('🔄 Заполняем форму данными:', projectData);
       
       // Предзаполняем все поля
-      reset({
-        title: project.title || '',
-        description: project.description || '',
-        technologies: project.technologies || '',
-        category: project.category || '',
-        // ❌ УДАЛЕНО: featured: project.featured || false,
-        status: project.status || 'published',
-        sortOrder: project.sortOrder || 0,
-        customButtons: project.customButtons || [],
-      });
+      const formData = {
+        title: projectData.title || '',
+        description: projectData.description || '',
+        technologies: projectData.technologies || '',
+        category: projectData.category || '',
+        status: projectData.status || 'published',
+        sortOrder: projectData.sortOrder || 0,
+        customButtons: projectData.customButtons || [],
+      };
+      
+      console.log('📝 Данные для формы:', formData);
+      reset(formData);
       
       // Предзаполняем медиафайлы
-      setMediaFiles(project.mediaFiles || []);
+      if (projectData.mediaFiles && Array.isArray(projectData.mediaFiles)) {
+        setMediaFiles(projectData.mediaFiles);
+        console.log('🖼️ Установлены медиафайлы:', projectData.mediaFiles.length);
+      } else if (projectData.imageUrl) {
+        // Обратная совместимость для старых проектов
+        const legacyMediaFile = {
+          id: 1,
+          url: projectData.imageUrl,
+          type: 'image',
+          name: projectData.title + ' - Cover Image',
+          caption: '',
+          alt: projectData.title
+        };
+        setMediaFiles([legacyMediaFile]);
+        console.log('🔄 Создан legacy медиафайл из imageUrl');
+      }
       
-      console.log('Форма заполнена:', {
-        title: project.title,
-        category: project.category,
-        mediaFiles: project.mediaFiles?.length || 0
-      });
     } else if (!isEditing) {
       // При создании нового проекта очищаем форму
+      console.log('🆕 Сброс формы для нового проекта');
       reset({
         title: '',
         description: '',
@@ -112,7 +145,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       });
       setMediaFiles([]);
     }
-  }, [project, reset, isEditing]);
+  }, [fullProject, project, reset, isEditing]);
 
   // Валидация медиафайлов
   useEffect(() => {
@@ -142,6 +175,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
         toast.success('Project updated');
         queryClient.invalidateQueries('admin-projects');
         queryClient.invalidateQueries('project-categories');
+        queryClient.invalidateQueries(['project-detail', project?.id]);
         onSuccess?.();
       },
       onError: (error) => {
@@ -203,7 +237,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       imageUrl: mediaFiles.length > 0 ? mediaFiles[0].url : null,
     };
 
-    console.log('Отправляем данные:', projectData);
+    console.log('📤 Отправляем данные:', projectData);
 
     if (isEditing) {
       updateMutation.mutate({ id: project.id, data: projectData });
@@ -212,7 +246,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     }
   };
 
-  const isLoading = isSubmitting || createMutation.isLoading || updateMutation.isLoading;
+  const isLoading = isSubmitting || createMutation.isLoading || updateMutation.isLoading || isLoadingProject;
 
   const tabs = [
     { id: 'basic', name: 'Basic Info', icon: '📝' },
@@ -225,6 +259,29 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     { id: 'buttons', name: 'Buttons', icon: '🔗' },
     { id: 'settings', name: 'Settings', icon: '⚙️' },
   ];
+
+  // ✅ ДОБАВЛЯЕМ: Показываем загрузку при запросе данных проекта
+  if (isEditing && isLoadingProject) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="absolute inset-0 bg-black/50" />
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="relative bg-white rounded-lg shadow-lg w-full max-w-md p-8 text-center"
+        >
+          <div className="w-8 h-8 border-2 border-neutral-200 border-t-neutral-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-neutral-600">Loading project data...</p>
+        </motion.div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -245,7 +302,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-200">
           <h2 className="text-xl font-light text-neutral-900">
-            {isEditing ? `Edit: ${project?.title || 'Project'}` : 'New Project'}
+            {isEditing ? `Edit: ${fullProject?.title || project?.title || 'Project'}` : 'New Project'}
           </h2>
           <button
             onClick={onClose}
@@ -287,10 +344,14 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             {/* Basic Info Tab */}
             {activeTab === 'basic' && (
               <div className="space-y-6">
-                {/* ✅ ОТЛАДОЧНАЯ ИНФОРМАЦИЯ (убрать в продакшене) */}
+                {/* ✅ ДОБАВЛЯЕМ: Отладочная информация */}
                 {isEditing && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
-                    <strong>Debug:</strong> Editing project "{project?.title}" (ID: {project?.id})
+                    <strong>Debug:</strong> Editing project "{fullProject?.title || project?.title}" (ID: {project?.id})
+                    <br />
+                    <strong>Full data loaded:</strong> {fullProject ? 'Yes' : 'No'}
+                    <br />
+                    <strong>Media files:</strong> {mediaFiles.length}
                   </div>
                 )}
                 
@@ -411,8 +472,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
                       <div>
                         <h4 className="text-sm font-medium text-red-900">Invalid Cover File</h4>
                         <p className="mt-1 text-sm text-red-700">
-                          The first media file must be an image (JPG, PNG, WebP, or GIF) to serve as the project cover. 
-                          Please drag an image to the first position or remove the video from the first position.
+                          The first media file must be an image (JPG, PNG, WebP, or GIF) to serve as the project cover.
                         </p>
                       </div>
                     </div>
@@ -424,84 +484,6 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
                   onFilesReorder={handleMediaFilesReorder}
                   existingFiles={mediaFiles}
                 />
-
-                {/* Media List with Captions */}
-                {mediaFiles.length > 0 && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium text-neutral-900">
-                      Media Captions & Details ({mediaFiles.length})
-                    </h4>
-                    {mediaFiles.map((file, index) => (
-                      <div key={file.id || index} className="border border-neutral-200 rounded-lg p-4">
-                        <div className="flex items-start space-x-4">
-                          <div className="w-16 h-16 bg-neutral-100 rounded-lg overflow-hidden flex-shrink-0 relative">
-                            {index === 0 && (
-                              <div className={`absolute -top-1 -left-1 z-10 px-1 py-0.5 rounded text-xs font-bold ${
-                                file.type === 'image' 
-                                  ? 'bg-green-500 text-white' 
-                                  : 'bg-red-500 text-white'
-                              }`}>
-                                {file.type === 'image' ? 'COVER' : 'ERROR'}
-                              </div>
-                            )}
-                            {file.type === 'video' ? (
-                              <img
-                                src={file.thumbnail || '/placeholder-video.jpg'}
-                                alt={`Media ${index + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <img
-                                src={file.url}
-                                alt={`Media ${index + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                            )}
-                          </div>
-                          
-                          <div className="flex-1 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-neutral-900">
-                                  {file.name || `Media ${index + 1}`}
-                                  {index === 0 && (
-                                    <span className={`ml-2 text-xs px-2 py-1 rounded ${
-                                      file.type === 'image' 
-                                        ? 'bg-green-100 text-green-800' 
-                                        : 'bg-red-100 text-red-800'
-                                    }`}>
-                                      {file.type === 'image' ? 'Project Cover' : 'Invalid Cover!'}
-                                    </span>
-                                  )}
-                                </p>
-                                <p className="text-xs text-neutral-500">
-                                  {file.type.toUpperCase()} • {(file.size / 1024 / 1024).toFixed(1)}MB
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMedia(index)}
-                                className="text-red-500 hover:text-red-700 transition-colors"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </div>
-                            
-                            <input
-                              type="text"
-                              placeholder="Add caption (optional)"
-                              value={file.caption || ''}
-                              onChange={(e) => handleMediaCaptionChange(index, e.target.value)}
-                              className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
@@ -593,17 +575,6 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
                     </div>
                   ))}
                 </div>
-
-                {/* Examples */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">Examples:</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-blue-700">
-                    <div><strong>View Live:</strong> https://myproject.com</div>
-                    <div><strong>GitHub:</strong> https://github.com/user/repo</div>
-                    <div><strong>Documentation:</strong> https://docs.myproject.com</div>
-                    <div><strong>Case Study:</strong> https://behance.net/project</div>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -637,8 +608,6 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
                       placeholder="0"
                     />
                   </div>
-
-                  {/* ❌ УДАЛЕНО: поле Featured */}
                 </div>
               </div>
             )}
