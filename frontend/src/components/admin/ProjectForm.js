@@ -1,10 +1,10 @@
-// frontend/src/components/admin/ProjectForm.js - Полная версия с валидацией
+// frontend/src/components/admin/ProjectForm.js - Без featured + предзаполнение при редактировании
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation, useQueryClient } from 'react-query';
+import { useMutation, useQueryClient, useQuery } from 'react-query';
 import { projectsAPI } from '../../utils/api';
 import MediaUploader from './MediaUploader';
 import toast from 'react-hot-toast';
@@ -13,7 +13,8 @@ const projectSchema = z.object({
   title: z.string().min(1, 'Title required').max(100, 'Title too long'),
   description: z.string().min(1, 'Description required').max(1000, 'Description too long'),
   technologies: z.string().min(1, 'Technologies required').max(200, 'Technologies list too long'),
-  featured: z.boolean().default(false),
+  category: z.string().min(1, 'Category required').max(50, 'Category name too long'),
+  // ❌ УДАЛЕНО: featured: z.boolean().default(false),
   status: z.enum(['draft', 'published', 'archived']).default('draft'),
   sortOrder: z.number().int().min(0).default(0),
   customButtons: z.array(z.object({
@@ -26,9 +27,23 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
   const [mediaFiles, setMediaFiles] = useState([]);
   const [activeTab, setActiveTab] = useState('basic');
   const [hasMediaValidationError, setHasMediaValidationError] = useState(false);
+  const [categoryInput, setCategoryInput] = useState('');
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
   const queryClient = useQueryClient();
 
   const isEditing = !!project?.id;
+
+  // Получаем существующие категории
+  const { data: categoriesData } = useQuery(
+    'project-categories',
+    () => projectsAPI.getCategories(),
+    {
+      select: (response) => response.data.categories,
+      staleTime: 5 * 60 * 1000,
+    }
+  );
+
+  const existingCategories = categoriesData || [];
 
   const {
     register,
@@ -36,17 +51,19 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     formState: { errors, isSubmitting },
     control,
     reset,
+    setValue,
+    watch,
   } = useForm({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       title: '',
       description: '',
       technologies: '',
-      featured: false,
+      category: '',
+      // ❌ УДАЛЕНО: featured: false,
       status: 'draft',
       sortOrder: 0,
       customButtons: [],
-      ...project,
     },
   });
 
@@ -55,20 +72,47 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     name: 'customButtons'
   });
 
+  const watchedCategory = watch('category');
+
+  // ✅ ИСПРАВЛЕНО: Правильное предзаполнение формы при редактировании
   useEffect(() => {
-    if (project) {
+    if (project && isEditing) {
+      console.log('Заполняем форму данными проекта:', project);
+      
+      // Предзаполняем все поля
       reset({
         title: project.title || '',
         description: project.description || '',
         technologies: project.technologies || '',
-        featured: project.featured || false,
-        status: project.status || 'draft',
+        category: project.category || '',
+        // ❌ УДАЛЕНО: featured: project.featured || false,
+        status: project.status || 'published',
         sortOrder: project.sortOrder || 0,
         customButtons: project.customButtons || [],
       });
+      
+      // Предзаполняем медиафайлы
       setMediaFiles(project.mediaFiles || []);
+      
+      console.log('Форма заполнена:', {
+        title: project.title,
+        category: project.category,
+        mediaFiles: project.mediaFiles?.length || 0
+      });
+    } else if (!isEditing) {
+      // При создании нового проекта очищаем форму
+      reset({
+        title: '',
+        description: '',
+        technologies: '',
+        category: '',
+        status: 'draft',
+        sortOrder: 0,
+        customButtons: [],
+      });
+      setMediaFiles([]);
     }
-  }, [project, reset]);
+  }, [project, reset, isEditing]);
 
   // Валидация медиафайлов
   useEffect(() => {
@@ -82,6 +126,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       onSuccess: () => {
         toast.success('Project created');
         queryClient.invalidateQueries('admin-projects');
+        queryClient.invalidateQueries('project-categories');
         onSuccess?.();
       },
       onError: (error) => {
@@ -96,6 +141,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       onSuccess: () => {
         toast.success('Project updated');
         queryClient.invalidateQueries('admin-projects');
+        queryClient.invalidateQueries('project-categories');
         onSuccess?.();
       },
       onError: (error) => {
@@ -122,11 +168,31 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     ));
   };
 
+  // Обработка выбора категории
+  const handleCategorySelect = (category) => {
+    if (category === 'NEW_CATEGORY') {
+      setShowCategoryInput(true);
+      setCategoryInput('');
+    } else {
+      setValue('category', category);
+      setShowCategoryInput(false);
+    }
+  };
+
+  // Обработка создания новой категории
+  const handleNewCategorySubmit = () => {
+    if (categoryInput.trim()) {
+      setValue('category', categoryInput.trim());
+      setShowCategoryInput(false);
+      setCategoryInput('');
+    }
+  };
+
   const onSubmit = async (data) => {
     // Валидация медиафайлов перед отправкой
     if (mediaFiles.length > 0 && mediaFiles[0].type !== 'image') {
       toast.error('First media file must be an image for project cover!');
-      setActiveTab('media'); // Переключаемся на вкладку с медиа
+      setActiveTab('media');
       return;
     }
 
@@ -136,6 +202,8 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       // Убираем старые поля для совместимости
       imageUrl: mediaFiles.length > 0 ? mediaFiles[0].url : null,
     };
+
+    console.log('Отправляем данные:', projectData);
 
     if (isEditing) {
       updateMutation.mutate({ id: project.id, data: projectData });
@@ -177,7 +245,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-200">
           <h2 className="text-xl font-light text-neutral-900">
-            {isEditing ? 'Edit Project' : 'New Project'}
+            {isEditing ? `Edit: ${project?.title || 'Project'}` : 'New Project'}
           </h2>
           <button
             onClick={onClose}
@@ -219,6 +287,13 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             {/* Basic Info Tab */}
             {activeTab === 'basic' && (
               <div className="space-y-6">
+                {/* ✅ ОТЛАДОЧНАЯ ИНФОРМАЦИЯ (убрать в продакшене) */}
+                {isEditing && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+                    <strong>Debug:</strong> Editing project "{project?.title}" (ID: {project?.id})
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-neutral-900 mb-2">
@@ -232,6 +307,59 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
                     />
                     {errors.title && (
                       <p className="text-xs text-red-600 mt-1">{errors.title.message}</p>
+                    )}
+                  </div>
+
+                  {/* Поле категории */}
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-900 mb-2">
+                      Category *
+                    </label>
+                    {!showCategoryInput ? (
+                      <select
+                        {...register('category')}
+                        onChange={(e) => handleCategorySelect(e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
+                      >
+                        <option value="">Select category</option>
+                        {existingCategories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                        <option value="NEW_CATEGORY">+ Create New Category</option>
+                      </select>
+                    ) : (
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          value={categoryInput}
+                          onChange={(e) => setCategoryInput(e.target.value)}
+                          placeholder="Enter new category"
+                          className="flex-1 px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
+                          onKeyPress={(e) => e.key === 'Enter' && handleNewCategorySubmit()}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleNewCategorySubmit}
+                          className="px-3 py-2 bg-neutral-900 text-white text-sm rounded hover:bg-neutral-800 transition-colors"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowCategoryInput(false)}
+                          className="px-3 py-2 border border-neutral-300 text-sm rounded hover:bg-neutral-50 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                    {errors.category && (
+                      <p className="text-xs text-red-600 mt-1">{errors.category.message}</p>
+                    )}
+                    {watchedCategory && (
+                      <p className="text-xs text-neutral-500 mt-1">Selected: {watchedCategory}</p>
                     )}
                   </div>
 
@@ -482,7 +610,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             {/* Settings Tab */}
             {activeTab === 'settings' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-neutral-900 mb-2">
                       Status
@@ -510,19 +638,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      Options
-                    </label>
-                    <label className="flex items-center space-x-2 px-3 py-2 border border-neutral-300 rounded cursor-pointer hover:bg-neutral-50 transition-colors">
-                      <input
-                        {...register('featured')}
-                        type="checkbox"
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm">Featured Project</span>
-                    </label>
-                  </div>
+                  {/* ❌ УДАЛЕНО: поле Featured */}
                 </div>
               </div>
             )}

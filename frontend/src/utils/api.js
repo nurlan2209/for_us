@@ -1,4 +1,4 @@
-// frontend/src/utils/api.js
+// frontend/src/utils/api.js - Обновленный с эндпоинтом категорий
 import axios from 'axios';
 
 // API base URL
@@ -28,6 +28,7 @@ export const endpoints = {
   projects: {
     getAll: '/projects',
     getById: (id) => `/projects/${id}`,
+    getCategories: '/projects/categories', // ✅ НОВЫЙ ЭНДПОИНТ
     create: '/projects',
     update: (id) => `/projects/${id}`,
     delete: (id) => `/projects/${id}`,
@@ -77,6 +78,7 @@ export const projectsAPI = {
   // Public endpoints
   getAll: (params = {}) => api.get(endpoints.projects.getAll, { params }),
   getById: (id) => api.get(endpoints.projects.getById(id)),
+  getCategories: () => api.get(endpoints.projects.getCategories), // ✅ НОВЫЙ МЕТОД
   
   // Admin endpoints
   adminGetAll: () => api.get(endpoints.projects.adminGetAll),

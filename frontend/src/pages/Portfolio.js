@@ -1,4 +1,4 @@
-// frontend/src/pages/Portfolio.js - Исправленная полная версия
+// frontend/src/pages/Portfolio.js - Убраны featured фильтры, добавлены категории
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -75,17 +75,27 @@ const Portfolio = () => {
     }
   );
 
-  const projects = projectsData || [];
+  // ✅ НОВЫЙ ЗАПРОС: Получаем категории
+  const { data: categoriesData } = useQuery(
+    'project-categories',
+    () => projectsAPI.getCategories(),
+    {
+      select: (response) => response.data.categories,
+      staleTime: 5 * 60 * 1000,
+    }
+  );
 
-  // Мемоизированная фильтрация
+  const projects = projectsData || [];
+  const categories = categoriesData || [];
+
+  // ✅ ИСПРАВЛЕНО: Мемоизированная фильтрация по категориям
   const filteredProjects = React.useMemo(() => {
     return projects.filter(project => {
       if (filter === 'ALL') return true;
-      if (filter === 'FEATURED') return project.featured;
-      if (filter === 'WEB') return project.technologies.toLowerCase().includes('react') || project.technologies.toLowerCase().includes('web');
-      if (filter === 'MOBILE') return project.technologies.toLowerCase().includes('mobile') || project.technologies.toLowerCase().includes('react native');
-      if (filter === '3D') return project.technologies.toLowerCase().includes('three') || project.technologies.toLowerCase().includes('3d');
-      return false;
+      // ❌ УДАЛЕНО: if (filter === 'FEATURED') return project.featured;
+      
+      // Фильтрация по категориям
+      return project.category === filter;
     });
   }, [projects, filter]);
 
@@ -114,6 +124,20 @@ const Portfolio = () => {
       window.removeEventListener('keydown', handleInteraction);
     };
   }, []);
+
+  // ✅ ИСПРАВЛЕНО: Генерируем динамические фильтры
+  const filterOptions = React.useMemo(() => {
+    const options = ['ALL'];
+    
+    // Добавляем уникальные категории
+    categories.forEach(category => {
+      if (category && !options.includes(category)) {
+        options.push(category);
+      }
+    });
+    
+    return options;
+  }, [categories]);
 
   // Показываем ошибку без черного экрана
   if (error) {
@@ -167,7 +191,9 @@ const Portfolio = () => {
       >
         <div className="text-center">
           <h2 className="text-2xl font-bold text-neutral-900 mb-4">No Projects Found</h2>
-          <p className="text-neutral-600 mb-8">Try adjusting your filters.</p>
+          <p className="text-neutral-600 mb-8">
+            {filter === 'ALL' ? 'No projects available.' : `No projects in "${filter}" category.`}
+          </p>
           <button
             onClick={() => setFilter('ALL')}
             className="catalog-button-unveil catalog-button-primary"
@@ -290,16 +316,16 @@ const Portfolio = () => {
           >
             <h3 className="font-medium">{hoveredProject.title}</h3>
             <p className="text-sm opacity-80 mt-1">
-              {hoveredProject.technologies.split(',').slice(0, 3).join(', ')}
+              {hoveredProject.category} • {hoveredProject.technologies.split(',').slice(0, 3).join(', ')}
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Фильтры проектов */}
+      {/* ✅ ИСПРАВЛЕНО: Фильтры проектов по категориям */}
       <div className="fixed top-20 right-6 z-20 bg-white/90 backdrop-blur-sm rounded-lg border border-neutral-200 p-2">
         <div className="flex flex-col gap-1">
-          {['ALL', 'FEATURED', 'WEB', '3D', 'MOBILE'].map((filterOption) => (
+          {filterOptions.map((filterOption) => (
             <button
               key={filterOption}
               onClick={() => setFilter(filterOption)}
@@ -313,11 +339,20 @@ const Portfolio = () => {
             </button>
           ))}
         </div>
+        
+        {/* Показываем выбранную категорию */}
+        {filter !== 'ALL' && (
+          <div className="mt-2 pt-2 border-t border-neutral-200">
+            <div className="text-xs text-neutral-500 text-center">
+              {filter}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Navigation подсказки под статистикой */}
       <div className="fixed bottom-6 left-6 z-20 space-y-2">
-        {/* Статистика проектов */}
+        {/* ✅ ИСПРАВЛЕНО: Статистика проектов */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -329,8 +364,9 @@ const Portfolio = () => {
               {filteredProjects.length} Project{filteredProjects.length !== 1 ? 's' : ''}
             </div>
             <div>
-              {filteredProjects.filter(p => p.featured).length} Featured
+              {filter === 'ALL' ? 'All Categories' : `Category: ${filter}`}
             </div>
+            {/* ❌ УДАЛЕНО: счетчик featured проектов */}
           </div>
         </motion.div>
 
@@ -361,6 +397,13 @@ const Portfolio = () => {
             className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-neutral-200 p-6 z-30"
           >
             <div className="max-w-4xl mx-auto text-center">
+              
+              <div className="flex items-center justify-center space-x-2 mb-2">
+                <span className="text-sm font-medium text-neutral-500 bg-neutral-100 px-2 py-1 rounded">
+                  {hoveredProject.category}
+                </span>
+                {/* ❌ УДАЛЕНО: индикатор featured */}
+              </div>
               
               <h2 className="text-2xl lg:text-3xl font-light text-neutral-900 tracking-tight mb-4">
                 {hoveredProject.title}
@@ -399,6 +442,18 @@ const Portfolio = () => {
                     VIEW CODE
                   </a>
                 )}
+                {/* Показываем кастомные кнопки */}
+                {hoveredProject.customButtons?.map((button, index) => (
+                  <a
+                    key={index}
+                    href={button.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="catalog-button-unveil"
+                  >
+                    {button.text}
+                  </a>
+                ))}
                 <button
                   onClick={() => navigate(`/portfolio/${hoveredProject.id}`)}
                   className="catalog-button-unveil"
@@ -410,10 +465,6 @@ const Portfolio = () => {
           </motion.section>
         )}
       </AnimatePresence>
-
-      {/* Дополнительная информация о управлении - УДАЛЕНО, перенесено под статистику */}
-
-      {/* Индикатор производительности - УДАЛЕН, заменен на навигацию под статистикой */}
 
     </motion.div>
   );

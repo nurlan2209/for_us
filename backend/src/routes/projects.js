@@ -1,5 +1,4 @@
-// backend/src/routes/projects.js - Обновленная версия с поддержкой медиа и кнопок
-
+// backend/src/routes/projects.js - Убран featured
 import express from 'express';
 import { z } from 'zod';
 import { 
@@ -35,6 +34,7 @@ const projectSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title too long'),
   description: z.string().min(1, 'Description is required').max(1000, 'Description too long'),
   technologies: z.string().min(1, 'Technologies are required').max(200, 'Technologies list too long'),
+  category: z.string().min(1, 'Category is required').max(50, 'Category name too long'),
   
   // Legacy support
   imageUrl: z.string().url('Must be a valid URL').optional(),
@@ -45,7 +45,7 @@ const projectSchema = z.object({
   mediaFiles: z.array(mediaFileSchema).optional().default([]),
   customButtons: z.array(customButtonSchema).optional().default([]),
   
-  featured: z.boolean().optional().default(false),
+  // ❌ УДАЛЕНО: featured: z.boolean().optional().default(false),
   status: z.enum(['draft', 'published', 'archived']).optional().default('published'),
   sortOrder: z.number().int().min(0).optional().default(0)
 });
@@ -58,7 +58,7 @@ const updateProjectSchema = projectSchema.partial();
  */
 router.get('/', (req, res) => {
   try {
-    const { status = 'published', featured, limit, offset = 0 } = req.query;
+    const { status = 'published', category, limit, offset = 0 } = req.query;
     
     let projects = getProjects();
     
@@ -67,9 +67,11 @@ router.get('/', (req, res) => {
       projects = projects.filter(project => project.status === status);
     }
     
-    // Filter by featured
-    if (featured === 'true') {
-      projects = projects.filter(project => project.featured === true);
+    // ❌ УДАЛЕНО: фильтр по featured
+    
+    // Filter by category
+    if (category && category !== 'ALL') {
+      projects = projects.filter(project => project.category === category);
     }
     
     // Sort by sortOrder, then by createdAt (newest first)
@@ -102,6 +104,26 @@ router.get('/', (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to fetch projects'
+    });
+  }
+});
+
+/**
+ * GET /api/projects/categories
+ * Get all unique categories from published projects
+ */
+router.get('/categories', (req, res) => {
+  try {
+    const projects = getProjects().filter(project => project.status === 'published');
+    const categories = [...new Set(projects.map(project => project.category).filter(Boolean))];
+    
+    res.json({ categories });
+    
+  } catch (error) {
+    console.error('Get categories error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to fetch categories'
     });
   }
 });
