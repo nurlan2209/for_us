@@ -1,4 +1,4 @@
-// frontend/src/components/ui/MediaGallery.js
+// frontend/src/components/ui/MediaGallery.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -6,47 +6,135 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
 
-  // Определение типа медиа
-  const getMediaType = (url) => {
-    if (!url) return 'image';
-    const extension = url.split('.').pop().toLowerCase();
-    if (['mp4', 'webm', 'mov', 'avi'].includes(extension)) return 'video';
-    if (['gif'].includes(extension)) return 'gif';
+  // ✅ ИСПРАВЛЕНИЕ 1: Улучшенная функция определения типа медиа
+  const getMediaType = (mediaFile) => {
+    if (!mediaFile || !mediaFile.url) return 'image';
+    
+    // Проверяем тип из объекта медиафайла
+    if (mediaFile.type) {
+      return mediaFile.type;
+    }
+    
+    // Определяем по расширению файла
+    const url = mediaFile.url.toLowerCase();
+    if (url.includes('.mp4') || url.includes('.webm') || url.includes('.mov') || url.includes('.avi')) {
+      return 'video';
+    }
+    if (url.includes('.gif')) {
+      return 'gif';
+    }
     return 'image';
+  };
+
+  // ✅ ИСПРАВЛЕНИЕ 2: Проверка валидности URL
+  const isValidVideoUrl = (url) => {
+    if (!url) return false;
+    
+    try {
+      const urlObj = new URL(url);
+      // Проверяем, что это HTTP/HTTPS URL
+      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+    } catch {
+      return false;
+    }
   };
 
   // Навигация
   const goToNext = () => {
     setCurrentIndex((prev) => (prev + 1) % mediaFiles.length);
     setIsPlaying(false);
+    setVideoError(false);
   };
 
   const goToPrevious = () => {
     setCurrentIndex((prev) => (prev - 1 + mediaFiles.length) % mediaFiles.length);
     setIsPlaying(false);
+    setVideoError(false);
   };
 
-  // Автопроигрывание видео
+  // ✅ ИСПРАВЛЕНИЕ 3: Улучшенная обработка видео
   useEffect(() => {
     if (mediaFiles.length > 0 && videoRef.current) {
       const currentMedia = mediaFiles[currentIndex];
-      if (getMediaType(currentMedia.url) === 'video') {
+      const mediaType = getMediaType(currentMedia);
+      
+      if (mediaType === 'video' && isValidVideoUrl(currentMedia.url)) {
+        const video = videoRef.current;
+        
+        // Сброс ошибок
+        setVideoError(false);
+        
+        // Обработчики событий
+        const handleLoadedData = () => {
+          console.log('✅ Video loaded successfully:', currentMedia.url);
+          if (isPlaying) {
+            video.play().catch(err => {
+              console.error('❌ Video play error:', err);
+              setVideoError(true);
+            });
+          }
+        };
+
+        const handleError = (e) => {
+          console.error('❌ Video error:', e, 'URL:', currentMedia.url);
+          setVideoError(true);
+          setIsPlaying(false);
+        };
+
+        const handleCanPlay = () => {
+          console.log('✅ Video can play:', currentMedia.url);
+        };
+
+        // Добавляем обработчики
+        video.addEventListener('loadeddata', handleLoadedData);
+        video.addEventListener('error', handleError);
+        video.addEventListener('canplay', handleCanPlay);
+        
+        // Загружаем видео
+        video.load();
+
+        // Очистка
+        return () => {
+          video.removeEventListener('loadeddata', handleLoadedData);
+          video.removeEventListener('error', handleError);
+          video.removeEventListener('canplay', handleCanPlay);
+        };
+      }
+    }
+  }, [currentIndex, mediaFiles]);
+
+  // ✅ ИСПРАВЛЕНИЕ 4: Обработка воспроизведения
+  useEffect(() => {
+    if (mediaFiles.length > 0 && videoRef.current) {
+      const currentMedia = mediaFiles[currentIndex];
+      const mediaType = getMediaType(currentMedia);
+      
+      if (mediaType === 'video' && !videoError) {
+        const video = videoRef.current;
+        
         if (isPlaying) {
-          videoRef.current.play();
+          video.play().catch(err => {
+            console.error('❌ Play error:', err);
+            setVideoError(true);
+            setIsPlaying(false);
+          });
         } else {
-          videoRef.current.pause();
+          video.pause();
         }
       }
     }
-  }, [isPlaying, currentIndex, mediaFiles]);
+  }, [isPlaying, currentIndex, mediaFiles, videoError]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (isFullscreen && mediaFiles.length > 0) {
         const currentMedia = mediaFiles[currentIndex];
+        const mediaType = getMediaType(currentMedia);
+        
         switch (e.key) {
           case 'ArrowLeft':
             e.preventDefault();
@@ -62,7 +150,7 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
             break;
           case ' ':
             e.preventDefault();
-            if (getMediaType(currentMedia.url) === 'video') {
+            if (mediaType === 'video' && !videoError) {
               setIsPlaying(!isPlaying);
             }
             break;
@@ -72,7 +160,7 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen, isPlaying, currentIndex, mediaFiles]);
+  }, [isFullscreen, isPlaying, currentIndex, mediaFiles, videoError]);
 
   // Early return after all hooks
   if (!mediaFiles || mediaFiles.length === 0) {
@@ -80,29 +168,60 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
   }
 
   const currentMedia = mediaFiles[currentIndex];
+  const currentMediaType = getMediaType(currentMedia);
 
-  // Рендер медиа элемента
+  // ✅ ИСПРАВЛЕНИЕ 5: Улучшенный рендер медиа элемента
   const renderMedia = (media, className = '', isMainView = false) => {
-    const mediaType = getMediaType(media.url);
+    const mediaType = getMediaType(media);
+
+    // Проверяем валидность URL
+    if (!media.url) {
+      return (
+        <div className={`${className} bg-gray-200 flex items-center justify-center`}>
+          <span className="text-gray-500">No media URL</span>
+        </div>
+      );
+    }
 
     switch (mediaType) {
       case 'video':
+        if (!isValidVideoUrl(media.url)) {
+          return (
+            <div className={`${className} bg-gray-200 flex items-center justify-center`}>
+              <span className="text-gray-500">Invalid video URL</span>
+            </div>
+          );
+        }
+
         return (
           <video
             ref={isMainView ? videoRef : null}
-            src={media.url}
             className={className}
             controls={isMainView}
             loop
             muted={!isMainView}
-            autoPlay={!isMainView}
+            playsInline
+            preload="metadata"
             poster={media.thumbnail}
-            onLoadedData={() => {
-              if (isMainView && isPlaying) {
-                videoRef.current?.play();
+            onError={(e) => {
+              console.error('❌ Video render error:', e, 'URL:', media.url);
+              if (isMainView) {
+                setVideoError(true);
               }
             }}
-          />
+            onLoadStart={() => {
+              console.log('🔄 Video loading started:', media.url);
+            }}
+            onLoadedData={() => {
+              console.log('✅ Video loaded data:', media.url);
+              if (isMainView) {
+                setVideoError(false);
+              }
+            }}
+          >
+            <source src={media.url} type={`video/${media.url.split('.').pop()}`} />
+            <p>Your browser doesn't support HTML video. Here is a <a href={media.url}>link to the video</a> instead.</p>
+          </video>
         );
 
       case 'gif':
@@ -112,6 +231,9 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
             alt={media.alt || `${projectTitle} - Media ${media.id}`}
             className={className}
             loading="lazy"
+            onError={(e) => {
+              console.error('❌ GIF load error:', e, 'URL:', media.url);
+            }}
           />
         );
 
@@ -122,6 +244,9 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
             alt={media.alt || `${projectTitle} - Media ${media.id}`}
             className={className}
             loading="lazy"
+            onError={(e) => {
+              console.error('❌ Image load error:', e, 'URL:', media.url);
+            }}
           />
         );
     }
@@ -145,10 +270,36 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
               className="relative aspect-video bg-neutral-100 rounded-2xl overflow-hidden shadow-card border border-neutral-200 cursor-pointer group"
               onClick={() => setIsFullscreen(true)}
             >
-              {renderMedia(
-                currentMedia,
-                "w-full h-full object-cover transition-transform duration-300 group-hover:scale-105",
-                true
+              {/* ✅ ИСПРАВЛЕНИЕ 6: Показываем ошибку видео */}
+              {videoError && currentMediaType === 'video' ? (
+                <div className="w-full h-full bg-gray-200 flex flex-col items-center justify-center">
+                  <div className="text-center p-8">
+                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Video Error</h3>
+                    <p className="text-gray-600 mb-4">Unable to load video file</p>
+                    <p className="text-xs text-gray-500 break-all">{currentMedia.url}</p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVideoError(false);
+                        if (videoRef.current) {
+                          videoRef.current.load();
+                        }
+                      }}
+                      className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                renderMedia(
+                  currentMedia,
+                  "w-full h-full object-cover transition-transform duration-300 group-hover:scale-105",
+                  true
+                )
               )}
 
               {/* Overlay Controls */}
@@ -168,27 +319,6 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
               <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-medium">
                 {currentIndex + 1} / {mediaFiles.length}
               </div>
-
-              {/* Video Play Button */}
-              {getMediaType(currentMedia.url) === 'video' && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsPlaying(!isPlaying);
-                  }}
-                  className="absolute bottom-4 left-4 bg-black/70 text-white p-2 rounded-full hover:bg-black/90 transition-colors"
-                >
-                  {isPlaying ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  )}
-                </button>
-              )}
 
               {/* Navigation Arrows */}
               {mediaFiles.length > 1 && (
@@ -236,6 +366,7 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
                   onClick={() => {
                     setCurrentIndex(index);
                     setIsPlaying(false);
+                    setVideoError(false);
                   }}
                   className={`relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-300 ${
                     index === currentIndex
@@ -246,10 +377,10 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
                   {renderMedia(media, "w-full h-full object-cover")}
                   
                   {/* Video/GIF Indicator */}
-                  {getMediaType(media.url) !== 'image' && (
+                  {getMediaType(media) !== 'image' && (
                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                       <div className="bg-white/90 rounded-full p-1">
-                        {getMediaType(media.url) === 'video' ? (
+                        {getMediaType(media) === 'video' ? (
                           <svg className="w-3 h-3 text-neutral-900" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z" />
                           </svg>
@@ -288,10 +419,23 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
 
             {/* Main Media */}
             <div className="max-w-[90vw] max-h-[90vh] relative" onClick={(e) => e.stopPropagation()}>
-              {renderMedia(
-                currentMedia,
-                "max-w-full max-h-full object-contain",
-                true
+              {videoError && currentMediaType === 'video' ? (
+                <div className="bg-gray-800 text-white p-8 rounded-lg text-center">
+                  <h3 className="text-xl mb-4">Video Error</h3>
+                  <p className="mb-4">Unable to load video in fullscreen</p>
+                  <button
+                    onClick={() => setVideoError(false)}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                renderMedia(
+                  currentMedia,
+                  "max-w-full max-h-full object-contain",
+                  true
+                )
               )}
 
               {/* Fullscreen Navigation */}
@@ -316,24 +460,6 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
                   </button>
                 </>
               )}
-
-              {/* Fullscreen Video Controls */}
-              {getMediaType(currentMedia.url) === 'video' && (
-                <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-white/30 transition-colors"
-                >
-                  {isPlaying ? (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
-                    </svg>
-                  ) : (
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  )}
-                </button>
-              )}
             </div>
 
             {/* Counter and Info */}
@@ -354,6 +480,7 @@ const MediaGallery = ({ mediaFiles = [], projectTitle = '' }) => {
             <div className="absolute bottom-6 right-6 text-white text-sm opacity-60">
               <div className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
                 Press ESC to close • Arrow keys to navigate
+                {currentMediaType === 'video' && !videoError && ' • Space to play/pause'}
               </div>
             </div>
           </motion.div>

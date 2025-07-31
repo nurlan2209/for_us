@@ -1,4 +1,4 @@
-// backend/src/services/minio.js
+// backend/src/services/minio.js - ИСПРАВЛЕННАЯ ВЕРСИЯ с CORS
 import * as Minio from 'minio';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -26,28 +26,71 @@ async function initializeMinio() {
     if (!bucketExists) {
       await minioClient.makeBucket(bucketName, 'us-east-1');
       console.log(`✅ Bucket '${bucketName}' created successfully`);
-      
-      // Set bucket policy for public read access to images
-      const policy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${bucketName}/images/*`]
-          }
-        ]
-      };
-      
-      try {
-        await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
-        console.log('✅ Bucket policy set for public image access');
-      } catch (policyError) {
-        console.log('⚠️  Could not set bucket policy (not critical):', policyError.message);
-      }
     } else {
       console.log(`✅ Bucket '${bucketName}' already exists`);
+    }
+    
+    // ✅ ИСПРАВЛЕНИЕ 1: Установка правильной CORS политики
+    const corsConfig = {
+      CORSRules: [
+        {
+          ID: 'AllowAll',
+          AllowedHeaders: ['*'],
+          AllowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD'],
+          AllowedOrigins: [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:8080',
+            'http://127.0.0.1:8080',
+            '*'  // Для разработки - в продакшене укажите конкретные домены
+          ],
+          ExposeHeaders: [
+            'ETag',
+            'Content-Range',
+            'Content-Length',
+            'Content-Type',
+            'Last-Modified'
+          ],
+          MaxAgeSeconds: 3600
+        }
+      ]
+    };
+
+    try {
+      await minioClient.setBucketCors(bucketName, corsConfig);
+      console.log('✅ CORS policy set successfully');
+    } catch (corsError) {
+      console.error('⚠️  CORS policy error:', corsError.message);
+    }
+    
+    // ✅ ИСПРАВЛЕНИЕ 2: Установка правильной bucket policy для публичного доступа
+    const policy = {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: { AWS: ['*'] },
+          Action: ['s3:GetObject'],
+          Resource: [
+            `arn:aws:s3:::${bucketName}/images/*`,
+            `arn:aws:s3:::${bucketName}/videos/*`,  // ✅ Добавляем видео
+            `arn:aws:s3:::${bucketName}/documents/*`
+          ]
+        },
+        {
+          Effect: 'Allow',
+          Principal: { AWS: ['*'] },
+          Action: ['s3:ListBucket'],
+          Resource: [`arn:aws:s3:::${bucketName}`]
+        }
+      ]
+    };
+    
+    try {
+      await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+      console.log('✅ Bucket policy set for public access');
+    } catch (policyError) {
+      console.error('⚠️  Bucket policy error:', policyError.message);
     }
     
     console.log('✅ MinIO initialized successfully');
@@ -81,21 +124,37 @@ async function uploadFile(file, folder = 'uploads') {
     const fileExtension = file.originalname.split('.').pop();
     const fileName = `${folder}/${uuidv4()}.${fileExtension}`;
     
-    // Set metadata
+    // ✅ ИСПРАВЛЕНИЕ 3: Улучшенные метаданные с правильным Content-Type
     const metaData = {
       'Content-Type': file.mimetype,
       'X-Original-Name': file.originalname,
-      'X-Upload-Date': new Date().toISOString()
+      'X-Upload-Date': new Date().toISOString(),
+      'Cache-Control': 'public, max-age=31536000', // 1 год для кеширования
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, HEAD',
+      'Access-Control-Allow-Headers': '*'
     };
     
     // Upload file
     await client.putObject(bucketName, fileName, file.buffer, file.size, metaData);
     
-    // ✅ Генерируем правильный URL для браузера
-    const minioPublicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
-    const fileUrl = `${minioPublicUrl}/${bucketName}/${fileName}`;
+    // ✅ ИСПРАВЛЕНИЕ 4: URL через прокси бэкенда
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+    const fileUrl = `${backendUrl}/api/media/${bucketName}/${fileName}`;
     
-    console.log('🔗 Generated file URL:', fileUrl);
+    console.log('🔗 Generated proxy URL:', fileUrl);
+    
+    // ✅ ИСПРАВЛЕНИЕ 5: Тестируем доступность файла
+    try {
+      const response = await fetch(fileUrl, { method: 'HEAD' });
+      if (response.ok) {
+        console.log('✅ File is accessible via URL');
+      } else {
+        console.warn('⚠️  File upload successful but not accessible via public URL');
+      }
+    } catch (testError) {
+      console.warn('⚠️  Could not test file accessibility:', testError.message);
+    }
     
     return {
       fileName,
@@ -137,15 +196,9 @@ async function getFileUrl(fileName, expiry = 24 * 60 * 60) {
     const client = getMinioClient();
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
-    // For public files (images), return direct URL
-    if (fileName.startsWith('images/')) {
-      const minioPublicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
-      return `${minioPublicUrl}/${bucketName}/${fileName}`;
-    }
-    
-    // For private files, generate presigned URL
-    const url = await client.presignedGetObject(bucketName, fileName, expiry);
-    return url;
+    // ✅ ИСПРАВЛЕНИЕ 6: Для всех медиафайлов возвращаем прямую ссылку
+    const minioPublicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
+    return `${minioPublicUrl}/${bucketName}/${fileName}`;
     
   } catch (error) {
     console.error('Error generating file URL:', error);

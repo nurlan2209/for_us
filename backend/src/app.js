@@ -1,4 +1,4 @@
-// backend/src/app.js
+// backend/src/app.js - ДОБАВЬТЕ МЕДИА МАРШРУТ
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
 import uploadRoutes from './routes/upload.js';
 import settingsRoutes from './routes/settings.js';
+import mediaRoutes from './routes/media.js'; // ✅ НОВЫЙ МАРШРУТ
 
 // Import services
 import { initializeDatabase } from './services/database.js';
@@ -29,15 +30,16 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
+      imgSrc: ["'self'", "data:", "https:", "*"], // ✅ РАЗРЕШАЕМ ВСЕ ИЗОБРАЖЕНИЯ
+      mediaSrc: ["'self'", "data:", "https:", "*"], // ✅ РАЗРЕШАЕМ ВСЕ МЕДИА
     },
   },
 }));
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Too many requests from this IP, please try again later.',
 });
 app.use('/api/', limiter);
@@ -47,10 +49,18 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
 
-// CORS configuration
+// CORS configuration - ✅ РАСШИРЕННАЯ CORS КОНФИГУРАЦИЯ
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: process.env.CORS_CREDENTIALS === 'true',
+  origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Range', 'Accept-Ranges'],
+  exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length']
 }));
 
 // Body parsing middleware
@@ -62,6 +72,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/media', mediaRoutes); // ✅ МЕДИА ПРОКСИ
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -113,19 +124,17 @@ async function startServer() {
   try {
     console.log('🚀 Starting Portfolio Backend...');
     
-    // Initialize database
     await initializeDatabase();
     console.log('✅ Database initialized');
     
-    // Initialize MinIO
     await initializeMinio();
     console.log('✅ MinIO initialized');
     
-    // Start server
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🌟 Server running on port ${PORT}`);
       console.log(`📚 Environment: ${process.env.NODE_ENV}`);
       console.log(`🔗 API URL: http://localhost:${PORT}/api`);
+      console.log(`🎬 Media Proxy: http://localhost:${PORT}/api/media`); // ✅ НОВЫЙ URL
     });
     
   } catch (error) {
@@ -145,7 +154,6 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// Start the server
 startServer();
 
 export default app;
