@@ -1,4 +1,4 @@
-// frontend/src/components/admin/ProjectForm.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// frontend/src/components/admin/ProjectForm.js - ОБНОВЛЕННАЯ ВЕРСИЯ с датой выхода
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -14,13 +14,36 @@ const projectSchema = z.object({
   description: z.string().min(1, 'Description required').max(1000, 'Description too long'),
   technologies: z.string().min(1, 'Technologies required').max(200, 'Technologies list too long'),
   category: z.string().min(1, 'Category required').max(50, 'Category name too long'),
-  status: z.enum(['draft', 'published', 'archived']).default('draft'),
-  sortOrder: z.number().int().min(0).default(0),
+  
+  // ✅ НОВОЕ ПОЛЕ: Дата выхода
+  releaseDate: z.string().min(1, 'Release date required'),
+  
+  // Legacy support
+  imageUrl: z.string().url('Must be a valid URL').optional(),
+  projectUrl: z.string().url('Must be a valid URL').optional(),
+  githubUrl: z.string().url('Must be a valid URL').optional(),
+  
+  // New fields
+  mediaFiles: z.array(z.object({
+    id: z.union([z.string(), z.number()]),
+    url: z.string().url('Must be a valid URL'),
+    type: z.enum(['image', 'video', 'gif']),
+    name: z.string().optional(),
+    size: z.number().optional(),
+    caption: z.string().optional(),
+    thumbnail: z.string().url().optional(),
+    alt: z.string().optional(),
+  })).optional().default([]),
   customButtons: z.array(z.object({
     text: z.string().min(1, 'Button text required'),
-    url: z.string().url('Invalid URL')
+    url: z.string().url('Must be a valid URL'),
   })).optional().default([]),
+  
+  status: z.enum(['draft', 'published', 'archived']).optional().default('published'),
+  sortOrder: z.number().int().min(0).optional().default(0)
 });
+
+const updateProjectSchema = projectSchema.partial();
 
 const ProjectForm = ({ project, onClose, onSuccess }) => {
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -34,7 +57,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
 
   console.log('🔍 ProjectForm props:', { project, isEditing });
 
-  // ✅ ДОБАВЛЯЕМ: Запрос полных данных проекта для редактирования
+  // Запрос полных данных проекта для редактирования
   const { data: fullProject, isLoading: isLoadingProject } = useQuery(
     ['project-detail', project?.id],
     () => projectsAPI.getById(project.id),
@@ -78,6 +101,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       description: '',
       technologies: '',
       category: '',
+      releaseDate: '', // ✅ НОВОЕ ПОЛЕ
       status: 'draft',
       sortOrder: 0,
       customButtons: [],
@@ -91,20 +115,30 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
 
   const watchedCategory = watch('category');
 
-  // ✅ ИСПРАВЛЕНО: Предзаполнение формы данными проекта
+  // ✅ ИСПРАВЛЕНИЕ: Предзаполнение формы с новым полем даты
   useEffect(() => {
-    // Используем либо полные данные из запроса, либо переданные props
     const projectData = isEditing ? (fullProject || project) : null;
     
     if (projectData && isEditing) {
       console.log('🔄 Заполняем форму данными:', projectData);
       
-      // Предзаполняем все поля
+      // ✅ Форматируем дату для input[type="date"]
+      let formattedReleaseDate = '';
+      if (projectData.releaseDate) {
+        const date = new Date(projectData.releaseDate);
+        formattedReleaseDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+      } else if (projectData.createdAt) {
+        // Fallback на дату создания
+        const date = new Date(projectData.createdAt);
+        formattedReleaseDate = date.toISOString().split('T')[0];
+      }
+      
       const formData = {
         title: projectData.title || '',
         description: projectData.description || '',
         technologies: projectData.technologies || '',
         category: projectData.category || '',
+        releaseDate: formattedReleaseDate, // ✅ НОВОЕ ПОЛЕ
         status: projectData.status || 'published',
         sortOrder: projectData.sortOrder || 0,
         customButtons: projectData.customButtons || [],
@@ -118,7 +152,6 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
         setMediaFiles(projectData.mediaFiles);
         console.log('🖼️ Установлены медиафайлы:', projectData.mediaFiles.length);
       } else if (projectData.imageUrl) {
-        // Обратная совместимость для старых проектов
         const legacyMediaFile = {
           id: 1,
           url: projectData.imageUrl,
@@ -132,13 +165,15 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
       }
       
     } else if (!isEditing) {
-      // При создании нового проекта очищаем форму
       console.log('🆕 Сброс формы для нового проекта');
+      // ✅ Устанавливаем текущую дату по умолчанию для нового проекта
+      const today = new Date().toISOString().split('T')[0];
       reset({
         title: '',
         description: '',
         technologies: '',
         category: '',
+        releaseDate: today, // ✅ Текущая дата по умолчанию
         status: 'draft',
         sortOrder: 0,
         customButtons: [],
@@ -260,7 +295,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
     { id: 'settings', name: 'Settings', icon: '⚙️' },
   ];
 
-  // ✅ ДОБАВЛЯЕМ: Показываем загрузку при запросе данных проекта
+  // Показываем загрузку при запросе данных проекта
   if (isEditing && isLoadingProject) {
     return (
       <motion.div
@@ -344,7 +379,7 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
             {/* Basic Info Tab */}
             {activeTab === 'basic' && (
               <div className="space-y-6">
-                {/* ✅ ДОБАВЛЯЕМ: Отладочная информация */}
+                {/* Debug info */}
                 {isEditing && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
                     <strong>Debug:</strong> Editing project "{fullProject?.title || project?.title}" (ID: {project?.id})
@@ -369,6 +404,24 @@ const ProjectForm = ({ project, onClose, onSuccess }) => {
                     {errors.title && (
                       <p className="text-xs text-red-600 mt-1">{errors.title.message}</p>
                     )}
+                  </div>
+
+                  {/* ✅ НОВОЕ ПОЛЕ: Дата выхода */}
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-900 mb-2">
+                      Release Date *
+                    </label>
+                    <input
+                      {...register('releaseDate')}
+                      type="date"
+                      className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-500 transition-colors"
+                    />
+                    {errors.releaseDate && (
+                      <p className="text-xs text-red-600 mt-1">{errors.releaseDate.message}</p>
+                    )}
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Date when the project was completed or released
+                    </p>
                   </div>
 
                   {/* Поле категории */}

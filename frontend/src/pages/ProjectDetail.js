@@ -1,4 +1,4 @@
-// frontend/src/pages/ProjectDetail.js - Обновленная версия
+// frontend/src/pages/ProjectDetail.js - ОБНОВЛЕННАЯ ВЕРСИЯ без года
 import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
@@ -24,6 +24,22 @@ const ProjectDetail = () => {
       enabled: !!id,
     }
   );
+
+  // ✅ Форматирование даты выхода
+  const formatReleaseDate = (dateString) => {
+    if (!dateString) return 'Not specified';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
 
   if (isLoading) {
     return (
@@ -197,29 +213,74 @@ const ProjectDetail = () => {
                     </div>
                   </div>
                   
-                  <div>
-                    <div className="text-sm text-neutral-500 uppercase tracking-wide mb-1">
-                      Year
-                    </div>
-                    <div className="text-neutral-900 font-medium">
-                      {new Date(project.createdAt).getFullYear()}
-                    </div>
-                  </div>
+                  {/* ✅ УБРАНО ПОЛЕ "YEAR" */}
                   
+                  {/* ✅ НОВОЕ ПОЛЕ: Release Date */}
                   <div>
                     <div className="text-sm text-neutral-500 uppercase tracking-wide mb-1">
-                      Created
+                      Release Date
                     </div>
                     <div className="text-neutral-900 font-medium">
-                      {new Date(project.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                      {formatReleaseDate(project.releaseDate)}
                     </div>
                   </div>
                 </div>
               </motion.div>
+
+              {/* ✅ ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ: Категория */}
+              {project.category && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  viewport={{ once: true }}
+                  className="bg-neutral-50 p-6 rounded-xl border border-neutral-200"
+                >
+                  <h3 className="text-lg font-light text-neutral-900 mb-4">
+                    Category
+                  </h3>
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-neutral-200 text-neutral-700">
+                    {project.category}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ✅ LEGACY BUTTONS: GitHub/Project URL (если нет кастомных кнопок) */}
+              {(!project.customButtons || project.customButtons.length === 0) && (project.projectUrl || project.githubUrl) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  viewport={{ once: true }}
+                  className="bg-neutral-50 p-6 rounded-xl border border-neutral-200"
+                >
+                  <h3 className="text-lg font-light text-neutral-900 mb-4">
+                    Links
+                  </h3>
+                  <div className="space-y-3">
+                    {project.projectUrl && (
+                      <a
+                        href={project.projectUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block catalog-button-unveil catalog-button-primary text-center"
+                      >
+                        View Live Project
+                      </a>
+                    )}
+                    {project.githubUrl && (
+                      <a
+                        href={project.githubUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block catalog-button-unveil text-center"
+                      >
+                        View Source Code
+                      </a>
+                    )}
+                  </div>
+                </motion.div>
+              )}
             </div>
           </div>
         </div>

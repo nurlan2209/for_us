@@ -1,4 +1,4 @@
-// backend/src/routes/projects.js - Убран featured
+// backend/src/routes/projects.js - ОБНОВЛЕННАЯ ВЕРСИЯ с releaseDate
 import express from 'express';
 import { z } from 'zod';
 import { 
@@ -36,6 +36,9 @@ const projectSchema = z.object({
   technologies: z.string().min(1, 'Technologies are required').max(200, 'Technologies list too long'),
   category: z.string().min(1, 'Category is required').max(50, 'Category name too long'),
   
+  // ✅ НОВОЕ ПОЛЕ: Дата выхода
+  releaseDate: z.string().min(1, 'Release date is required'),
+  
   // Legacy support
   imageUrl: z.string().url('Must be a valid URL').optional(),
   projectUrl: z.string().url('Must be a valid URL').optional(),
@@ -45,7 +48,6 @@ const projectSchema = z.object({
   mediaFiles: z.array(mediaFileSchema).optional().default([]),
   customButtons: z.array(customButtonSchema).optional().default([]),
   
-  // ❌ УДАЛЕНО: featured: z.boolean().optional().default(false),
   status: z.enum(['draft', 'published', 'archived']).optional().default('published'),
   sortOrder: z.number().int().min(0).optional().default(0)
 });
@@ -66,8 +68,6 @@ router.get('/', (req, res) => {
     if (status !== 'all') {
       projects = projects.filter(project => project.status === status);
     }
-    
-    // ❌ УДАЛЕНО: фильтр по featured
     
     // Filter by category
     if (category && category !== 'ALL') {
@@ -189,6 +189,24 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
     
     const projectData = validationResult.data;
     
+    // ✅ Валидация даты выхода
+    try {
+      const releaseDate = new Date(projectData.releaseDate);
+      if (isNaN(releaseDate.getTime())) {
+        return res.status(400).json({
+          error: 'Validation error',
+          message: 'Invalid release date format'
+        });
+      }
+      // Сохраняем как ISO строку
+      projectData.releaseDate = releaseDate.toISOString();
+    } catch (dateError) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'Invalid release date'
+      });
+    }
+    
     // Ensure mediaFiles is initialized
     if (!projectData.mediaFiles) {
       projectData.mediaFiles = [];
@@ -242,6 +260,25 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
     }
     
     const updateData = validationResult.data;
+    
+    // ✅ Валидация даты выхода при обновлении
+    if (updateData.releaseDate) {
+      try {
+        const releaseDate = new Date(updateData.releaseDate);
+        if (isNaN(releaseDate.getTime())) {
+          return res.status(400).json({
+            error: 'Validation error',
+            message: 'Invalid release date format'
+          });
+        }
+        updateData.releaseDate = releaseDate.toISOString();
+      } catch (dateError) {
+        return res.status(400).json({
+          error: 'Validation error',
+          message: 'Invalid release date'
+        });
+      }
+    }
     
     // Update project in database
     const updatedProject = await updateProject(projectId, updateData);

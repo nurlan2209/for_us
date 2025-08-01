@@ -1,4 +1,4 @@
-// backend/src/services/database.js
+// backend/src/services/database.js - ОБНОВЛЕННАЯ ВЕРСИЯ с миграцией releaseDate
 import { Low } from 'lowdb';
 import path from 'path';
 import fs from 'fs/promises';
@@ -56,6 +56,37 @@ const defaultData = {
 let db = null;
 
 /**
+ * ✅ МИГРАЦИЯ: Добавляет releaseDate к существующим проектам
+ */
+async function migrateDatabase() {
+  if (!db || !db.data || !db.data.projects) return;
+  
+  console.log('🔄 Checking for database migrations...');
+  
+  let needsMigration = false;
+  
+  // Проверяем каждый проект на наличие releaseDate
+  db.data.projects.forEach((project, index) => {
+    if (!project.releaseDate) {
+      needsMigration = true;
+      
+      // Используем createdAt как fallback для releaseDate
+      const fallbackDate = project.createdAt || new Date().toISOString();
+      db.data.projects[index].releaseDate = fallbackDate;
+      
+      console.log(`✅ Migrated project "${project.title}" - added releaseDate: ${fallbackDate}`);
+    }
+  });
+  
+  if (needsMigration) {
+    await db.write();
+    console.log('✅ Database migration completed - releaseDate field added to projects');
+  } else {
+    console.log('✅ No migration needed - all projects have releaseDate field');
+  }
+}
+
+/**
  * Initialize database and create default admin user
  */
 async function initializeDatabase() {
@@ -100,6 +131,9 @@ async function initializeDatabase() {
     if (!db.data.settings.contact) {
       db.data.settings.contact = { contactButtons: [] };
     }
+    
+    // ✅ ВЫПОЛНЯЕМ МИГРАЦИЮ
+    await migrateDatabase();
     
     // Create default admin user if doesn't exist
     await createDefaultAdmin();
@@ -206,6 +240,11 @@ async function addProject(projectData) {
     updatedAt: new Date().toISOString()
   };
   
+  // ✅ Убеждаемся что releaseDate есть
+  if (!newProject.releaseDate) {
+    newProject.releaseDate = newProject.createdAt;
+  }
+  
   projects.push(newProject);
   await getDatabase().write();
   
@@ -228,6 +267,11 @@ async function updateProject(id, updateData) {
     ...updateData,
     updatedAt: new Date().toISOString()
   };
+  
+  // ✅ Убеждаемся что releaseDate есть при обновлении
+  if (!projects[projectIndex].releaseDate && projects[projectIndex].createdAt) {
+    projects[projectIndex].releaseDate = projects[projectIndex].createdAt;
+  }
   
   await getDatabase().write();
   return projects[projectIndex];
