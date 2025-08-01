@@ -138,6 +138,24 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
+// ✅ ОТЛАДКА: Логирование всех запросов
+app.use((req, res, next) => {
+  console.log(`🌐 Request: ${req.method} ${req.path} - Origin: ${req.get('Origin')} - User-Agent: ${req.get('User-Agent')?.substring(0, 30)}`);
+  next();
+});
+
+// ✅ ТЕСТ: Простой роут для проверки
+app.get('/test', (req, res) => {
+  res.send(`
+    <h1>✅ Railway App Works!</h1>
+    <p>Environment: ${process.env.NODE_ENV}</p>
+    <p>Railway Domain: ${process.env.RAILWAY_DOMAIN}</p>
+    <p>Static files directory exists: ${fs.existsSync(path.join(__dirname, '../public'))}</p>
+    <p>Index.html exists: ${fs.existsSync(path.join(__dirname, '../public/index.html'))}</p>
+    <a href="/api/health">Health Check</a>
+  `);
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
