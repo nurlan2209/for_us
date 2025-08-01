@@ -1,0 +1,59 @@
+# Dockerfile.railway - Мульти-стейдж сборка для Railway
+FROM node:18-alpine AS frontend-build
+
+# Сборка фронтенда
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci --only=production
+
+COPY frontend/src ./src
+COPY frontend/public ./public
+COPY frontend/tailwind.config.js ./
+
+# Переменные окружения для сборки
+ARG REACT_APP_API_URL
+ARG REACT_APP_MINIO_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV REACT_APP_MINIO_URL=$REACT_APP_MINIO_URL
+
+RUN npm run build
+
+# Основной образ с бэкендом
+FROM node:18-alpine AS production
+
+# Устанавливаем MinIO client для настройки
+RUN apk add --no-cache curl
+RUN curl -O https://dl.min.io/client/mc/release/linux-amd64/mc && \
+    chmod +x mc && \
+    mv mc /usr/local/bin/
+
+WORKDIR /app
+
+# Копируем backend
+COPY backend/package*.json ./
+RUN npm ci --only=production
+
+COPY backend/src ./src
+
+# Копируем собранный frontend
+COPY --from=frontend-build /app/frontend/build ./public
+
+# Создаем директории
+RUN mkdir -p data minio-data
+
+# Устанавливаем права
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+# Экспонируем порт
+EXPOSE $PORT
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:$PORT/api/health || exit 1
+
+# Стартовый скрипт
+CMD ["node", "src/app.js"]
