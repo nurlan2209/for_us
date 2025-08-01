@@ -1,4 +1,4 @@
-// frontend/src/pages/Portfolio.js - Убраны featured фильтры, добавлены категории
+// frontend/src/pages/Portfolio.js - Убрана статистика проектов
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -75,7 +75,7 @@ const Portfolio = () => {
     }
   );
 
-  // ✅ НОВЫЙ ЗАПРОС: Получаем категории
+  // Получаем категории
   const { data: categoriesData } = useQuery(
     'project-categories',
     () => projectsAPI.getCategories(),
@@ -88,11 +88,10 @@ const Portfolio = () => {
   const projects = projectsData || [];
   const categories = categoriesData || [];
 
-  // ✅ ИСПРАВЛЕНО: Мемоизированная фильтрация по категориям
+  // Мемоизированная фильтрация по категориям
   const filteredProjects = React.useMemo(() => {
     return projects.filter(project => {
       if (filter === 'ALL') return true;
-      // ❌ УДАЛЕНО: if (filter === 'FEATURED') return project.featured;
       
       // Фильтрация по категориям
       return project.category === filter;
@@ -125,7 +124,7 @@ const Portfolio = () => {
     };
   }, []);
 
-  // ✅ ИСПРАВЛЕНО: Генерируем динамические фильтры
+  // Генерируем динамические фильтры
   const filterOptions = React.useMemo(() => {
     const options = ['ALL'];
     
@@ -322,22 +321,36 @@ const Portfolio = () => {
         )}
       </AnimatePresence>
 
-      {/* ✅ ИСПРАВЛЕНО: Фильтры проектов по категориям */}
+      {/* Фильтры проектов по категориям с счетчиками */}
       <div className="fixed top-20 right-6 z-20 bg-white/90 backdrop-blur-sm rounded-lg border border-neutral-200 p-2">
         <div className="flex flex-col gap-1">
-          {filterOptions.map((filterOption) => (
-            <button
-              key={filterOption}
-              onClick={() => setFilter(filterOption)}
-              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                filter === filterOption
-                  ? 'bg-neutral-900 text-white'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
-              }`}
-            >
-              {filterOption}
-            </button>
-          ))}
+          {filterOptions.map((filterOption) => {
+            // Подсчитываем количество проектов для каждой категории
+            const projectCount = filterOption === 'ALL' 
+              ? projects.length 
+              : projects.filter(project => project.category === filterOption).length;
+            
+            return (
+              <button
+                key={filterOption}
+                onClick={() => setFilter(filterOption)}
+                className={`px-3 py-1 text-xs font-medium rounded transition-colors flex items-center justify-between ${
+                  filter === filterOption
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+                }`}
+              >
+                <span>{filterOption}</span>
+                <span className={`ml-2 text-xs ${
+                  filter === filterOption
+                    ? 'text-neutral-300'
+                    : 'text-neutral-400'
+                }`}>
+                  ({projectCount})
+                </span>
+              </button>
+            );
+          })}
         </div>
         
         {/* Показываем выбранную категорию */}
@@ -350,26 +363,8 @@ const Portfolio = () => {
         )}
       </div>
 
-      {/* Navigation подсказки под статистикой */}
-      <div className="fixed bottom-6 left-6 z-20 space-y-2">
-        {/* ✅ ИСПРАВЛЕНО: Статистика проектов */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
-          className="bg-white/90 backdrop-blur-sm rounded-lg border border-neutral-200 p-3"
-        >
-          <div className="text-xs text-neutral-600">
-            <div className="font-medium text-neutral-900 mb-1">
-              {filteredProjects.length} Project{filteredProjects.length !== 1 ? 's' : ''}
-            </div>
-            <div>
-              {filter === 'ALL' ? 'All Categories' : `Category: ${filter}`}
-            </div>
-            {/* ❌ УДАЛЕНО: счетчик featured проектов */}
-          </div>
-        </motion.div>
-
+      {/* ✅ УДАЛЕН БЛОК СО СТАТИСТИКОЙ ПРОЕКТОВ - Navigation подсказки теперь одни */}
+      <div className="fixed bottom-6 left-6 z-20">
         {/* Navigation подсказки */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -402,7 +397,6 @@ const Portfolio = () => {
                 <span className="text-sm font-medium text-neutral-500 bg-neutral-100 px-2 py-1 rounded">
                   {hoveredProject.category}
                 </span>
-                {/* ❌ УДАЛЕНО: индикатор featured */}
               </div>
               
               <h2 className="text-2xl lg:text-3xl font-light text-neutral-900 tracking-tight mb-4">

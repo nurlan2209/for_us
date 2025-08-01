@@ -1,7 +1,6 @@
-// frontend/src/components/3d/ProjectStack3D.js - Обновленная версия с оптимизированным скроллом
-
+// frontend/src/components/3d/ProjectStack3D.js - АДАПТИВНАЯ ВЕРСИЯ для мобильных
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
@@ -11,7 +10,8 @@ const ProjectCarouselCard = React.memo(({
   position = [0, 0, 0], 
   index = 0,
   onClick,
-  onHover
+  onHover,
+  isMobile = false // ✅ НОВЫЙ ПРОПС для мобильной версии
 }) => {
   const meshRef = useRef();
   const groupRef = useRef();
@@ -31,6 +31,9 @@ const ProjectCarouselCard = React.memo(({
     texture.magFilter = THREE.LinearFilter;
     texture.flipY = true;
   });
+
+  // ✅ АДАПТИВНЫЕ РАЗМЕРЫ для карточек
+  const cardSize = isMobile ? [2.2, 1.65] : [3, 2.25]; // Уменьшаем размер на мобильных
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -67,7 +70,6 @@ const ProjectCarouselCard = React.memo(({
       });
     }
     
-    // Показываем обычный курсор в 3D зоне
     document.body.style.cursor = 'pointer';
   };
 
@@ -79,7 +81,6 @@ const ProjectCarouselCard = React.memo(({
       window.updateProjectCursor({ show: false });
     }
     
-    // Возвращаем обычный курсор
     document.body.style.cursor = 'auto';
   };
 
@@ -91,7 +92,8 @@ const ProjectCarouselCard = React.memo(({
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
       >
-        <planeGeometry args={[3, 2.25]} />
+        {/* ✅ ИСПОЛЬЗУЕМ АДАПТИВНЫЕ РАЗМЕРЫ */}
+        <planeGeometry args={cardSize} />
         <meshBasicMaterial
           map={texture}
           side={THREE.DoubleSide}
@@ -99,8 +101,9 @@ const ProjectCarouselCard = React.memo(({
       </mesh>
 
       {project.featured && (
-        <mesh position={[1.3, 1.0, 0.01]}>
-          <circleGeometry args={[0.06, 8]} />
+        <mesh position={[cardSize[0] * 0.43, cardSize[1] * 0.44, 0.01]}>
+          {/* ✅ АДАПТИВНЫЙ РАЗМЕР индикатора */}
+          <circleGeometry args={[isMobile ? 0.04 : 0.06, 8]} />
           <meshBasicMaterial color="#0066ff" />
         </mesh>
       )}
@@ -108,29 +111,25 @@ const ProjectCarouselCard = React.memo(({
   );
 });
 
-// Утилита для детекции Mac
-const isMacOS = () => {
-  return typeof navigator !== 'undefined' && 
-         /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+// Утилита для детекции мобильных устройств
+const isMobileDevice = () => {
+  return typeof window !== 'undefined' && window.innerWidth <= 1024;
 };
 
 // Утилита для нормализации deltaY на разных платформах
 const normalizeDeltaY = (deltaY, deltaMode) => {
-  // deltaMode: 0 = pixel, 1 = line, 2 = page
   let normalizedDelta = deltaY;
   
   if (deltaMode === 1) {
-    // Line mode - умножаем на высоту строки
     normalizedDelta = deltaY * 16;
   } else if (deltaMode === 2) {
-    // Page mode - умножаем на высоту страницы
     normalizedDelta = deltaY * window.innerHeight;
   }
   
   return normalizedDelta;
 };
 
-// Оптимизированный обработчик скролла для Mac тачпада
+// Оптимизированный обработчик скролла
 const useOptimizedScroll = (onScroll, projects) => {
   const scrollState = useRef({
     isScrolling: false,
@@ -148,59 +147,43 @@ const useOptimizedScroll = (onScroll, projects) => {
     const deltaTime = now - scrollState.current.lastTime;
     scrollState.current.lastTime = now;
 
-    // Нормализуем deltaY для разных режимов
     let normalizedDelta = normalizeDeltaY(event.deltaY, event.deltaMode);
     
-    // Специальная обработка для Mac тачпада
-    if (isMacOS()) {
-      // На Mac тачпад генерирует много мелких событий
-      // Уменьшаем чувствительность и добавляем аккумуляцию
-      normalizedDelta *= 0.3; // Снижаем чувствительность
-      
-      // Игнорируем очень маленькие движения (шум тачпада)
-      if (Math.abs(normalizedDelta) < 1) {
-        return;
-      }
-    } else {
-      // Для мыши - стандартная обработка
-      normalizedDelta *= 0.5;
+    // ✅ АДАПТИВНАЯ чувствительность для мобильных
+    const isMobile = isMobileDevice();
+    normalizedDelta *= isMobile ? 0.2 : 0.3; // Меньше чувствительность на мобильных
+    
+    if (Math.abs(normalizedDelta) < 1) {
+      return;
     }
 
-    // Определяем направление
     const newDirection = normalizedDelta > 0 ? 1 : -1;
     
-    // Аккумулируем скролл
     scrollState.current.accumulator += normalizedDelta;
     scrollState.current.velocity = normalizedDelta / Math.max(deltaTime, 16);
     
-    // Пороговое значение для переключения проекта
-    const threshold = isMacOS() ? 25 : 50;
+    // ✅ АДАПТИВНЫЙ порог для мобильных
+    const threshold = isMobile ? 15 : 25;
     
     if (Math.abs(scrollState.current.accumulator) >= threshold) {
       const steps = Math.floor(Math.abs(scrollState.current.accumulator) / threshold);
       const direction = scrollState.current.accumulator > 0 ? 1 : -1;
       
-      // Вызываем колбэк с количеством шагов
       onScroll(direction, steps);
-      
-      // Сбрасываем аккумулятор
       scrollState.current.accumulator = 0;
     }
 
-    // Throttling для предотвращения слишком частых обновлений
     if (!scrollState.current.isScrolling) {
       scrollState.current.isScrolling = true;
       
-      // Очищаем предыдущий таймаут
       if (scrollState.current.scrollTimeout) {
         clearTimeout(scrollState.current.scrollTimeout);
       }
       
-      // Устанавливаем новый таймаут
       scrollState.current.scrollTimeout = setTimeout(() => {
         scrollState.current.isScrolling = false;
-        scrollState.current.accumulator = 0; // Сбрасываем остаток
-      }, isMacOS() ? 150 : 100);
+        scrollState.current.accumulator = 0;
+      }, isMobile ? 100 : 150);
     }
   }, [onScroll]);
 
@@ -216,11 +199,10 @@ const useOptimizedScroll = (onScroll, projects) => {
   }, [handleWheel]);
 };
 
-// Оптимизированный хук для управления клавиатурой
+// Клавиатурная навигация
 const useKeyboardNavigation = (onNavigate, projects) => {
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // Проверяем, что фокус не на input/textarea
       if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
         return;
       }
@@ -242,12 +224,25 @@ const useKeyboardNavigation = (onNavigate, projects) => {
   }, [onNavigate, projects.length]);
 };
 
-// 3D Стек проектов с оптимизированным скроллом
+// 3D Стек проектов с адаптивными размерами
 export const ProjectStack3D = ({ projects = [], onProjectClick }) => {
   const groupRef = useRef();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hoveredProject, setHoveredProject] = useState(null);
+  const [isMobile, setIsMobile] = useState(isMobileDevice());
+  
+  // ✅ ОТСЛЕЖИВАНИЕ размера экрана для адаптивности
+  const { viewport } = useThree();
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(isMobileDevice());
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Оптимизированная функция навигации
   const navigate = useCallback((direction, steps = 1) => {
@@ -261,44 +256,38 @@ export const ProjectStack3D = ({ projects = [], onProjectClick }) => {
     
     setCurrentIndex(newIndex);
     
-    // Сбрасываем флаг транзиции с задержкой
     setTimeout(() => {
       setIsTransitioning(false);
-    }, 300); // Время должно соответствовать анимации вращения
+    }, 300);
     
   }, [currentIndex, projects.length, isTransitioning]);
 
-  // Подключаем оптимизированный скролл
+  // Подключаем скролл и клавиатуру
   useOptimizedScroll(navigate, projects);
-  
-  // Подключаем клавиатурную навигацию
   useKeyboardNavigation(navigate, projects);
 
-  // Плавная анимация карусели
+  // Плавная анимация карусели с адаптивным радиусом
   useFrame((state) => {
     if (groupRef.current && projects.length > 0) {
       const targetRotation = -(currentIndex * Math.PI * 2) / projects.length;
       const currentRotation = groupRef.current.rotation.y;
       
-      // Вычисляем кратчайший путь поворота
       let rotationDiff = targetRotation - currentRotation;
       
-      // Нормализуем разность угла
       while (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
       while (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
       
-      // Применяем плавное вращение
       const rotationSpeed = isTransitioning ? 0.12 : 0.08;
       groupRef.current.rotation.y += rotationDiff * rotationSpeed;
       
-      // Легкое покачивание
       const time = state.clock.elapsedTime;
       groupRef.current.position.y = Math.sin(time * 0.5) * 0.05;
     }
   });
 
   const getCarouselPosition = (index) => {
-    const radius = 4;
+    // ✅ АДАПТИВНЫЙ радиус для мобильных устройств
+    const radius = isMobile ? 2.8 : 4; // Меньше радиус = ближе к камере = меньше карточки
     const angle = (index * Math.PI * 2) / projects.length;
     
     const x = Math.sin(angle) * radius;
@@ -331,25 +320,26 @@ export const ProjectStack3D = ({ projects = [], onProjectClick }) => {
               index={index}
               onClick={onProjectClick}
               onHover={handleProjectHover}
+              isMobile={isMobile} // ✅ ПЕРЕДАЕМ флаг мобильной версии
             />
           );
         })}
       </group>
 
-      {/* Улучшенное освещение */}
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[0, 5, 5]} intensity={0.4} />
+      {/* ✅ АДАПТИВНОЕ освещение */}
+      <ambientLight intensity={isMobile ? 0.7 : 0.6} />
+      <directionalLight position={[0, 5, 5]} intensity={isMobile ? 0.5 : 0.4} />
       <pointLight position={[-5, 3, -5]} intensity={0.3} color="#e2e8f0" />
 
-      {/* Навигационные точки */}
-      <group position={[0, -3, 0]}>
+      {/* ✅ АДАПТИВНЫЕ навигационные точки */}
+      <group position={[0, isMobile ? -2.5 : -3, 0]}>
         {projects.map((_, index) => (
           <mesh
             key={index}
-            position={[(index - projects.length / 2) * 0.4, 0, 0]}
+            position={[(index - projects.length / 2) * (isMobile ? 0.3 : 0.4), 0, 0]}
             onClick={() => !isTransitioning && setCurrentIndex(index)}
           >
-            <sphereGeometry args={[0.04, 8, 8]} />
+            <sphereGeometry args={[isMobile ? 0.03 : 0.04, 8, 8]} />
             <meshBasicMaterial 
               color={index === currentIndex ? "#0066ff" : "#d4d4d8"}
               transparent

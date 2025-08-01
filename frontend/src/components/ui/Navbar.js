@@ -1,4 +1,4 @@
-// frontend/src/components/ui/Navbar.js
+// frontend/src/components/ui/Navbar.js - Исправленная версия
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -86,24 +86,24 @@ const Navbar = () => {
               ))}
             </div>
 
-            {/* Mobile menu button */}
+            {/* ✅ ИСПРАВЛЕННОЕ мобильное меню с правильной позицией и размером */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="lg:hidden text-black hover:opacity-70 transition-opacity duration-200"
+              className="lg:hidden text-black hover:opacity-70 transition-opacity duration-200 ml-4"
               aria-label="Menu"
             >
               <motion.div
                 animate={{ rotate: isOpen ? 90 : 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="transform">
                   {isOpen ? (
-                    <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                    <path d="M16.5 5.5L5.5 16.5M5.5 5.5L16.5 16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                   ) : (
                     <>
-                      <path d="M3 5H15" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                      <path d="M3 9H15" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                      <path d="M3 13H15" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                      <path d="M3 6H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M3 11H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M3 16H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                     </>
                   )}
                 </svg>
