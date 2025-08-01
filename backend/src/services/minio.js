@@ -1,4 +1,4 @@
-// backend/src/services/minio.js - ИСПРАВЛЕННАЯ ВЕРСИЯ с CORS
+// backend/src/services/minio.js - ИСПРАВЛЕННАЯ ВЕРСИЯ для Railway
 import * as Minio from 'minio';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -11,8 +11,11 @@ async function initializeMinio() {
   try {
     console.log('🚀 Initializing MinIO...');
     
+    // ✅ ИСПРАВЛЕНО: правильный endpoint для Railway
+    const endpoint = process.env.RAILWAY_ENVIRONMENT_NAME ? 'localhost' : (process.env.MINIO_ENDPOINT || 'localhost');
+    
     minioClient = new Minio.Client({
-      endPoint: process.env.MINIO_ENDPOINT || 'localhost',
+      endPoint: endpoint,
       port: parseInt(process.env.MINIO_PORT) || 9000,
       useSSL: process.env.MINIO_USE_SSL === 'true',
       accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
@@ -20,6 +23,20 @@ async function initializeMinio() {
     });
 
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
+    
+    // ✅ Ждем чтобы MinIO точно запустился
+    let retries = 10;
+    while (retries > 0) {
+      try {
+        await minioClient.listBuckets();
+        break;
+      } catch (error) {
+        console.log(`⏳ Waiting for MinIO... (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        retries--;
+        if (retries === 0) throw error;
+      }
+    }
     
     // Check if bucket exists, create if not
     const bucketExists = await minioClient.bucketExists(bucketName);
@@ -30,7 +47,7 @@ async function initializeMinio() {
       console.log(`✅ Bucket '${bucketName}' already exists`);
     }
     
-    // ✅ ИСПРАВЛЕНИЕ 1: Установка правильной CORS политики
+    // ✅ ИСПРАВЛЕНИЕ: CORS политика для Railway
     const corsConfig = {
       CORSRules: [
         {
@@ -38,15 +55,13 @@ async function initializeMinio() {
           AllowedHeaders: ['*'],
           AllowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD'],
           AllowedOrigins: [
+            process.env.CORS_ORIGIN || 'https://production.railway.app',
             'http://localhost:3000',
-            'http://127.0.0.1:3000',
-            'http://localhost:8080',
-            'http://127.0.0.1:8080',
-            '*'  // Для разработки - в продакшене укажите конкретные домены
+            '*'  // Для разработки
           ],
           ExposeHeaders: [
             'ETag',
-            'Content-Range',
+            'Content-Range', 
             'Content-Length',
             'Content-Type',
             'Last-Modified'
@@ -60,10 +75,10 @@ async function initializeMinio() {
       await minioClient.setBucketCors(bucketName, corsConfig);
       console.log('✅ CORS policy set successfully');
     } catch (corsError) {
-      console.error('⚠️  CORS policy error:', corsError.message);
+      console.error('⚠️ CORS policy error:', corsError.message);
     }
     
-    // ✅ ИСПРАВЛЕНИЕ 2: Установка правильной bucket policy для публичного доступа
+    // ✅ ИСПРАВЛЕНИЕ: bucket policy для публичного доступа
     const policy = {
       Version: '2012-10-17',
       Statement: [
@@ -73,15 +88,9 @@ async function initializeMinio() {
           Action: ['s3:GetObject'],
           Resource: [
             `arn:aws:s3:::${bucketName}/images/*`,
-            `arn:aws:s3:::${bucketName}/videos/*`,  // ✅ Добавляем видео
+            `arn:aws:s3:::${bucketName}/videos/*`,
             `arn:aws:s3:::${bucketName}/documents/*`
           ]
-        },
-        {
-          Effect: 'Allow',
-          Principal: { AWS: ['*'] },
-          Action: ['s3:ListBucket'],
-          Resource: [`arn:aws:s3:::${bucketName}`]
         }
       ]
     };
@@ -90,7 +99,7 @@ async function initializeMinio() {
       await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
       console.log('✅ Bucket policy set for public access');
     } catch (policyError) {
-      console.error('⚠️  Bucket policy error:', policyError.message);
+      console.error('⚠️ Bucket policy error:', policyError.message);
     }
     
     console.log('✅ MinIO initialized successfully');
@@ -103,17 +112,7 @@ async function initializeMinio() {
 }
 
 /**
- * Get MinIO client instance
- */
-function getMinioClient() {
-  if (!minioClient) {
-    throw new Error('MinIO not initialized. Call initializeMinio() first.');
-  }
-  return minioClient;
-}
-
-/**
- * Upload file to MinIO
+ * Upload file to MinIO - ИСПРАВЛЕНО для Railway
  */
 async function uploadFile(file, folder = 'uploads') {
   try {
@@ -124,37 +123,24 @@ async function uploadFile(file, folder = 'uploads') {
     const fileExtension = file.originalname.split('.').pop();
     const fileName = `${folder}/${uuidv4()}.${fileExtension}`;
     
-    // ✅ ИСПРАВЛЕНИЕ 3: Улучшенные метаданные с правильным Content-Type
     const metaData = {
       'Content-Type': file.mimetype,
       'X-Original-Name': file.originalname,
       'X-Upload-Date': new Date().toISOString(),
-      'Cache-Control': 'public, max-age=31536000', // 1 год для кеширования
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, HEAD',
-      'Access-Control-Allow-Headers': '*'
+      'Cache-Control': 'public, max-age=31536000',
     };
     
     // Upload file
     await client.putObject(bucketName, fileName, file.buffer, file.size, metaData);
     
-    // ✅ ИСПРАВЛЕНИЕ 4: URL через прокси бэкенда
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
-    const fileUrl = `${backendUrl}/api/media/${bucketName}/${fileName}`;
+    // ✅ ИСПРАВЛЕНО: правильный URL для Railway
+    const baseUrl = process.env.RAILWAY_ENVIRONMENT_NAME 
+      ? process.env.MINIO_PUBLIC_URL || `https://${process.env.RAILWAY_DOMAIN}`
+      : process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
     
-    console.log('🔗 Generated proxy URL:', fileUrl);
+    const fileUrl = `${baseUrl}/api/media/${bucketName}/${fileName}`;
     
-    // ✅ ИСПРАВЛЕНИЕ 5: Тестируем доступность файла
-    try {
-      const response = await fetch(fileUrl, { method: 'HEAD' });
-      if (response.ok) {
-        console.log('✅ File is accessible via URL');
-      } else {
-        console.warn('⚠️  File upload successful but not accessible via public URL');
-      }
-    } catch (testError) {
-      console.warn('⚠️  Could not test file accessibility:', testError.message);
-    }
+    console.log('🔗 Generated URL:', fileUrl);
     
     return {
       fileName,
@@ -169,6 +155,16 @@ async function uploadFile(file, folder = 'uploads') {
     console.error('Error uploading file:', error);
     throw error;
   }
+}
+
+/**
+ * Get MinIO client instance
+ */
+function getMinioClient() {
+  if (!minioClient) {
+    throw new Error('MinIO not initialized. Call initializeMinio() first.');
+  }
+  return minioClient;
 }
 
 /**
@@ -196,52 +192,15 @@ async function getFileUrl(fileName, expiry = 24 * 60 * 60) {
     const client = getMinioClient();
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
-    // ✅ ИСПРАВЛЕНИЕ 6: Для всех медиафайлов возвращаем прямую ссылку
-    const minioPublicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
-    return `${minioPublicUrl}/${bucketName}/${fileName}`;
+    // ✅ ИСПРАВЛЕНИЕ: возвращаем прямую ссылку через прокси
+    const baseUrl = process.env.RAILWAY_ENVIRONMENT_NAME 
+      ? process.env.MINIO_PUBLIC_URL || `https://${process.env.RAILWAY_DOMAIN}`
+      : process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
+      
+    return `${baseUrl}/api/media/${bucketName}/${fileName}`;
     
   } catch (error) {
     console.error('Error generating file URL:', error);
-    throw error;
-  }
-}
-
-/**
- * List files in folder
- */
-async function listFiles(folder = '', recursive = false) {
-  try {
-    const client = getMinioClient();
-    const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
-    
-    const files = [];
-    const stream = client.listObjects(bucketName, folder, recursive);
-    
-    return new Promise((resolve, reject) => {
-      stream.on('data', (obj) => files.push(obj));
-      stream.on('error', reject);
-      stream.on('end', () => resolve(files));
-    });
-    
-  } catch (error) {
-    console.error('Error listing files:', error);
-    throw error;
-  }
-}
-
-/**
- * Get file statistics
- */
-async function getFileStats(fileName) {
-  try {
-    const client = getMinioClient();
-    const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
-    
-    const stats = await client.statObject(bucketName, fileName);
-    return stats;
-    
-  } catch (error) {
-    console.error('Error getting file stats:', error);
     throw error;
   }
 }
@@ -251,7 +210,5 @@ export {
   getMinioClient,
   uploadFile,
   deleteFile,
-  getFileUrl,
-  listFiles,
-  getFileStats
+  getFileUrl
 };
