@@ -4,11 +4,12 @@ FROM node:18-alpine AS frontend-build
 # Сборка фронтенда
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 COPY frontend/src ./src
 COPY frontend/public ./public
 COPY frontend/tailwind.config.js ./
+COPY frontend/postcss.config.js ./
 
 # Переменные окружения для сборки
 ARG REACT_APP_API_URL
