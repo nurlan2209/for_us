@@ -1,4 +1,4 @@
-// backend/src/app.js - RAILWAY VERSION
+// backend/src/app.js - ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ для Railway
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -27,17 +28,17 @@ import { initializeMinio } from './services/minio.js';
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 8080;
 
-// ✅ RAILWAY: Trust proxy для HTTPS
+// ✅ Railway: Trust proxy для HTTPS
 app.set('trust proxy', 1);
 
-// ✅ RAILWAY: Обновленный Helmet для продакшена
+// ✅ Railway: Обновленный Helmet для продакшена
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      scriptSrc: ["'self'", "'unsafe-eval'"], // Для React
+      scriptSrc: ["'self'", "'unsafe-eval'"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "*"],
       mediaSrc: ["'self'", "data:", "https:", "*"],
@@ -55,7 +56,7 @@ app.use(helmet({
   }
 }));
 
-// ✅ RAILWAY: Продакшен rate limiting
+// ✅ Railway: Продакшен rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 минут
   max: process.env.NODE_ENV === 'production' ? 100 : 1000,
@@ -71,7 +72,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(logFormat));
 }
 
-// ✅ RAILWAY: Продакшен CORS
+// ✅ Railway: Продакшен CORS
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
@@ -103,12 +104,38 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ✅ RAILWAY: Статические файлы фронтенда
+// ✅ ИСПРАВЛЕНИЕ: Статические файлы фронтенда для Railway
 if (process.env.NODE_ENV === 'production') {
   const publicPath = path.join(__dirname, '../public');
-  app.use(express.static(publicPath));
   
-  console.log(`📁 Serving static files from: ${publicPath}`);
+  // Проверяем что директория существует
+  if (fs.existsSync(publicPath)) {
+    console.log(`📁 Serving static files from: ${publicPath}`);
+    
+    // Проверяем содержимое директории
+    try {
+      const files = fs.readdirSync(publicPath);
+      console.log(`📂 Files in public directory: ${files.join(', ')}`);
+      
+      // Проверяем наличие index.html
+      const indexExists = fs.existsSync(path.join(publicPath, 'index.html'));
+      console.log(`📄 index.html exists: ${indexExists}`);
+      
+    } catch (err) {
+      console.error(`❌ Error reading public directory:`, err);
+    }
+    
+    // Отдаем статические файлы с правильными заголовками
+    app.use(express.static(publicPath, {
+      maxAge: '1y',
+      etag: false,
+      lastModified: false,
+      index: false  // НЕ отдаем index.html автоматически
+    }));
+    
+  } else {
+    console.error(`❌ Public directory not found: ${publicPath}`);
+  }
 }
 
 // API routes
@@ -130,7 +157,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ✅ RAILWAY: Catch-all для React Router
+// ✅ ИСПРАВЛЕНИЕ: Catch-all для React Router (ТОЛЬКО в продакшене)
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
     // Исключаем API роуты
@@ -141,12 +168,22 @@ if (process.env.NODE_ENV === 'production') {
       });
     }
     
-    // Отдаем index.html для React Router
-    res.sendFile(path.join(__dirname, '../public/index.html'));
+    // ✅ Отдаем index.html для React Router
+    const indexPath = path.join(__dirname, '../public/index.html');
+    if (fs.existsSync(indexPath)) {
+      console.log(`📄 Serving React app for: ${req.path}`);
+      res.sendFile(indexPath);
+    } else {
+      console.error(`❌ index.html not found at: ${indexPath}`);
+      res.status(500).json({
+        error: 'React app not found',
+        message: 'Frontend build files are missing'
+      });
+    }
   });
 }
 
-// 404 для API
+// 404 для API (только если не в продакшене или если путь начинается с /api/)
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     error: 'API endpoint not found',
@@ -154,7 +191,7 @@ app.use('/api/*', (req, res) => {
   });
 });
 
-// ✅ RAILWAY: Продакшен error handler
+// ✅ Railway: Продакшен error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   
@@ -183,7 +220,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ✅ RAILWAY: Startup function
+// ✅ Railway: Startup function
 async function startServer() {
   try {
     console.log('🚂 Starting Portfolio on Railway...');
@@ -193,16 +230,23 @@ async function startServer() {
     await initializeDatabase();
     console.log('✅ Database initialized');
     
-    // ✅ MinIO только в development или если явно включен
-    if (process.env.NODE_ENV === 'development' || process.env.ENABLE_MINIO === 'true') {
+    // ✅ MinIO для Railway
+    if (process.env.RAILWAY_ENVIRONMENT_NAME || process.env.ENABLE_MINIO === 'true') {
       try {
         await initializeMinio();
         console.log('✅ MinIO initialized');
       } catch (error) {
-        console.warn('⚠️  MinIO initialization failed, continuing without MinIO:', error.message);
+        console.warn('⚠️ MinIO initialization failed, continuing without MinIO:', error.message);
+      }
+    } else if (process.env.NODE_ENV === 'development') {
+      try {
+        await initializeMinio();
+        console.log('✅ MinIO initialized');
+      } catch (error) {
+        console.warn('⚠️ MinIO initialization failed, continuing without MinIO:', error.message);
       }
     } else {
-      console.log('ℹ️  Skipping MinIO in production mode');
+      console.log('ℹ️ Skipping MinIO in production mode');
     }
     
     app.listen(PORT, '0.0.0.0', () => {
@@ -210,7 +254,7 @@ async function startServer() {
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
       
       if (process.env.RAILWAY_ENVIRONMENT_NAME) {
-        console.log(`🚂 Railway URL: https://${process.env.RAILWAY_ENVIRONMENT_NAME}.railway.app`);
+        console.log(`🚂 Railway URL: https://${process.env.RAILWAY_DOMAIN || 'production.railway.app'}`);
       }
     });
     
@@ -220,7 +264,7 @@ async function startServer() {
   }
 }
 
-// ✅ RAILWAY: Graceful shutdown
+// ✅ Railway: Graceful shutdown
 const gracefulShutdown = (signal) => {
   console.log(`👋 ${signal} received, shutting down gracefully`);
   process.exit(0);
@@ -229,7 +273,7 @@ const gracefulShutdown = (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// ✅ RAILWAY: Unhandled rejections
+// ✅ Railway: Unhandled rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);

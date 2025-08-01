@@ -1,4 +1,4 @@
-# Dockerfile.railway - ИСПРАВЛЕННАЯ ВЕРСИЯ с MinIO
+# Dockerfile.railway - ИСПРАВЛЕННАЯ ВЕРСИЯ с отладкой
 FROM node:18-alpine AS frontend-build
 
 # Сборка фронтенда
@@ -11,13 +11,20 @@ COPY frontend/public ./public
 COPY frontend/tailwind.config.js ./
 COPY frontend/postcss.config.js ./
 
-# Переменные окружения для сборки
+# ✅ ИСПРАВЛЕНИЕ: Переменные окружения для сборки
 ARG REACT_APP_API_URL
 ARG REACT_APP_MINIO_URL
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 ENV REACT_APP_MINIO_URL=$REACT_APP_MINIO_URL
 
+# ✅ ОТЛАДКА: Проверяем переменные
+RUN echo "Building with API_URL: $REACT_APP_API_URL"
+RUN echo "Building with MINIO_URL: $REACT_APP_MINIO_URL"
+
 RUN npm run build
+
+# ✅ ОТЛАДКА: Проверяем что собралось
+RUN ls -la /app/frontend/build/
 
 # Основной образ с бэкендом И MinIO
 FROM node:18-alpine AS production
@@ -44,8 +51,12 @@ RUN npm ci --only=production
 
 COPY backend/src ./src
 
-# Копируем собранный frontend
+# ✅ ИСПРАВЛЕНИЕ: Копируем собранный frontend и проверяем
 COPY --from=frontend-build /app/frontend/build ./public
+
+# ✅ ОТЛАДКА: Проверяем что скопировалось
+RUN echo "Contents of /app/public:"
+RUN ls -la /app/public/
 
 # Создаем директории для MinIO и данных
 RUN mkdir -p data minio-data
