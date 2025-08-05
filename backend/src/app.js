@@ -40,8 +40,8 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       scriptSrc: ["'self'", "'unsafe-eval'"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:", "*"],
-      mediaSrc: ["'self'", "data:", "https:", "*"],
+      imgSrc: ["'self'", "data:", "https:", "*", "blob:"], // ✅ ДОБАВИЛИ blob:
+      mediaSrc: ["'self'", "data:", "https:", "*", "blob:"], // ✅ ДОБАВИЛИ blob:
       connectSrc: ["'self'", "https:", "wss:"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],

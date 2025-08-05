@@ -115,34 +115,47 @@ const MediaUploader = ({ onFilesUploaded, existingFiles = [], onFilesReorder }) 
     }
   };
 
-  // Генерация превью для видео
+    // Генерация превью для видео
   const generateVideoThumbnail = (file) => {
     return new Promise((resolve) => {
       const video = document.createElement('video');
       video.src = URL.createObjectURL(file);
       video.currentTime = 1;
+      video.muted = true; // ✅ ДОБАВИТЬ
+      video.playsInline = true; // ✅ ДОБАВИТЬ
 
       video.onloadeddata = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth || 640; // ✅ FALLBACK
+        canvas.height = video.videoHeight || 480; // ✅ FALLBACK
         
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         canvas.toBlob((blob) => {
-          const thumbnailFile = new File([blob], `${file.name}-thumb.jpg`, { type: 'image/jpeg' });
-          uploadAPI.uploadImage(thumbnailFile)
-            .then(response => resolve(response.data.file.url))
-            .catch(() => resolve(null));
+          if (blob) {
+            const thumbnailFile = new File([blob], `${file.name}-thumb.jpg`, { type: 'image/jpeg' });
+            uploadAPI.uploadImage(thumbnailFile)
+              .then(response => {
+                console.log('✅ Thumbnail uploaded:', response.data.file.url);
+                resolve(response.data.file.url);
+              })
+              .catch(err => {
+                console.error('❌ Thumbnail upload failed:', err);
+                resolve(null); // ✅ НЕ БЛОКИРУЕМ ЗАГРУЗКУ
+              });
+          } else {
+            resolve(null);
+          }
         }, 'image/jpeg', 0.8);
         
         URL.revokeObjectURL(video.src);
       };
 
-      video.onerror = () => {
+      video.onerror = (e) => {
+        console.error('❌ Video thumbnail error:', e);
         URL.revokeObjectURL(video.src);
-        resolve(null);
+        resolve(null); // ✅ НЕ БЛОКИРУЕМ ЗАГРУЗКУ
       };
     });
   };

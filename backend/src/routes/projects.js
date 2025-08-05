@@ -21,7 +21,7 @@ const mediaFileSchema = z.object({
   name: z.string().optional(),
   size: z.number().optional(),
   caption: z.string().optional(),
-  thumbnail: z.string().url().optional(),
+  thumbnail: z.string().url().optional().or(z.literal('')), // ✅ РАЗРЕШИТЬ ПУСТЫЕ
   alt: z.string().optional(),
 });
 
@@ -36,17 +36,29 @@ const projectSchema = z.object({
   technologies: z.string().min(1, 'Technologies are required').max(200, 'Technologies list too long'),
   category: z.string().min(1, 'Category is required').max(50, 'Category name too long'),
   
-  // ✅ НОВОЕ ПОЛЕ: Дата выхода
+  // Дата выхода
   releaseDate: z.string().min(1, 'Release date is required'),
   
   // Legacy support
-  imageUrl: z.string().url('Must be a valid URL').optional(),
-  projectUrl: z.string().url('Must be a valid URL').optional(),
-  githubUrl: z.string().url('Must be a valid URL').optional(),
+  imageUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  projectUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  githubUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   
-  // New fields
-  mediaFiles: z.array(mediaFileSchema).optional().default([]),
-  customButtons: z.array(customButtonSchema).optional().default([]),
+  // New fields - БОЛЕЕ ГИБКАЯ ВАЛИДАЦИЯ
+  mediaFiles: z.array(z.object({
+    id: z.union([z.string(), z.number()]),
+    url: z.string().min(1, 'URL required'), // ✅ УБРАЛИ .url() валидацию
+    type: z.enum(['image', 'video', 'gif']),
+    name: z.string().optional().default(''),
+    size: z.number().optional(),
+    caption: z.string().optional().default(''),
+    thumbnail: z.string().optional().default(''), // ✅ НЕ ТРЕБУЕМ URL
+    alt: z.string().optional().default(''),
+  })).optional().default([]),
+  customButtons: z.array(z.object({
+    text: z.string().min(1, 'Button text required'),
+    url: z.string().url('Must be a valid URL'),
+  })).optional().default([]),
   
   status: z.enum(['draft', 'published', 'archived']).optional().default('published'),
   sortOrder: z.number().int().min(0).optional().default(0)
@@ -248,6 +260,9 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
         message: 'Project ID must be a number'
       });
     }
+
+    console.log('🔍 Updating project:', projectId);
+    console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
     
     // Validate request body
     const validationResult = updateProjectSchema.safeParse(req.body);
@@ -279,6 +294,18 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
         });
       }
     }
+
+    // ✅ ОЧИСТКА ДАННЫХ МЕДИАФАЙЛОВ
+    if (updateData.mediaFiles) {
+      updateData.mediaFiles = updateData.mediaFiles.map(file => ({
+        ...file,
+        thumbnail: file.thumbnail || '', // Очищаем пустые thumbnail
+        alt: file.alt || '',
+        caption: file.caption || ''
+      }));
+    }
+    
+    console.log('✅ Cleaned data:', JSON.stringify(updateData, null, 2));
     
     // Update project in database
     const updatedProject = await updateProject(projectId, updateData);
