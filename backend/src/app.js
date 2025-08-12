@@ -78,8 +78,8 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.CORS_ORIGIN,
       process.env.FRONTEND_URL,
-      'http://localhost:3000',
-      'http://127.0.0.1:3000'
+      'http://localhost:3100',
+      'http://127.0.0.1:3100'
     ].filter(Boolean);
     
     // Разрешаем запросы без origin (мобильные приложения, Postman)

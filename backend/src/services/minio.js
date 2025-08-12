@@ -56,7 +56,7 @@ async function initializeMinio() {
           AllowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD'],
           AllowedOrigins: [
             process.env.CORS_ORIGIN || 'https://production.railway.app',
-            'http://localhost:3000',
+            'http://localhost:3100',
             '*'  // Для разработки
           ],
           ExposeHeaders: [

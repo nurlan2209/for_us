@@ -1,4 +1,3 @@
-# frontend/Dockerfile
 FROM node:18-alpine
 
 # Set working directory
@@ -18,17 +17,11 @@ COPY tailwind.config.js ./
 # Build the app
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
-
-# Copy built app to nginx
-COPY --from=0 /app/build /usr/share/nginx/html
-
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Install serve to serve the build folder
+RUN npm install -g serve
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3100
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start serving the build folder
+CMD ["serve", "-s", "build", "-l", "3100"]
