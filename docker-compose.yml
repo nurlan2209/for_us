@@ -1,4 +1,4 @@
-# docker-compose.yml - ИСПРАВЛЕННАЯ ВЕРСИЯ с CORS
+# docker-compose.yml - КОНФИГУРАЦИЯ ДЛЯ NGINX
 version: '3.8'
 
 services:
@@ -8,17 +8,18 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3100:3100"
+      - "3100:3100"  # nginx проксирует на этот порт
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_URL=https://kartofan.online:8100
-      - REACT_APP_MINIO_URL=https://kartofan.online:9000
+      - REACT_APP_API_URL=https://kartofan.online/api
+      - REACT_APP_MINIO_URL=https://kartofan.online/media
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
     networks:
       - portfolio-network
+    restart: unless-stopped
 
   # Backend (Express)
   backend:
@@ -26,7 +27,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8100:8100"
+      - "8100:8100"  # nginx проксирует /api/* на этот порт
     depends_on:
       - minio
     environment:
@@ -34,15 +35,17 @@ services:
       - PORT=8100
       - API_PORT=8100
       - CORS_ORIGIN=https://kartofan.online
-      - FRONTEND_URL=https://kartofan.online:3100
+      - FRONTEND_URL=https://kartofan.online
       - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
       - MINIO_USE_SSL=false
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
-      - MINIO_PUBLIC_URL=https://kartofan.online:9000  # ✅ НОВАЯ ПЕРЕМЕННАЯ
+      - MINIO_PUBLIC_URL=https://kartofan.online/media
     volumes:
       - ./backend/src:/app/src
       - ./backend/data:/app/data
@@ -50,22 +53,18 @@ services:
       - portfolio-network
     restart: unless-stopped
 
-  # MinIO (File Storage) - ✅ ИСПРАВЛЕННАЯ ВЕРСИЯ с CORS
+  # MinIO (File Storage)
   minio:
     image: minio/minio:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:9000"   # nginx проксирует /media/* на этот порт
+      - "9001:9001"   # админка MinIO (опционально)
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
-      # ✅ ДОБАВЛЯЕМ CORS НАСТРОЙКИ
-      - MINIO_API_CORS_ALLOW_ORIGIN=*
+      # CORS настройки для работы с nginx
+      - MINIO_API_CORS_ALLOW_ORIGIN=https://kartofan.online
       - MINIO_BROWSER_REDIRECT_URL=https://kartofan.online:9001
-      # ✅ ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ ДЛЯ CORS
-      - MINIO_API_SELECT_PARQUET=on
-      - MINIO_API_REQUESTS_MAX=1000
-      - MINIO_API_REQUESTS_DEADLINE=10s
     volumes:
       - ./minio/data:/data
       - ./minio/config:/root/.minio

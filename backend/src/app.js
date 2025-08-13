@@ -1,4 +1,4 @@
-// backend/src/app.js - ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ для Railway
+// backend/src/app.js - ИСПРАВЛЕННАЯ ВЕРСИЯ для nginx
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -26,12 +26,12 @@ import { initializeDatabase } from './services/database.js';
 import { initializeMinio } from './services/minio.js';
 
 const app = express();
-const PORT = process.env.PORT || process.env.API_PORT || 8080;
+const PORT = process.env.PORT || process.env.API_PORT || 8100;
 
-// ✅ Railway: Trust proxy для HTTPS
+// ✅ nginx: Trust proxy для правильной работы с nginx
 app.set('trust proxy', 1);
 
-// ✅ Railway: Обновленный Helmet для продакшена
+// ✅ nginx: Обновленный Helmet конфиг
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
@@ -40,8 +40,8 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       scriptSrc: ["'self'", "'unsafe-eval'"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:", "*", "blob:"], // ✅ ДОБАВИЛИ blob:
-      mediaSrc: ["'self'", "data:", "https:", "*", "blob:"], // ✅ ДОБАВИЛИ blob:
+      imgSrc: ["'self'", "data:", "https:", "*", "blob:"],
+      mediaSrc: ["'self'", "data:", "https:", "*", "blob:"],
       connectSrc: ["'self'", "https:", "wss:"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
@@ -56,7 +56,7 @@ app.use(helmet({
   }
 }));
 
-// ✅ Railway: Продакшен rate limiting
+// ✅ nginx: Продакшен rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 минут
   max: process.env.NODE_ENV === 'production' ? 100 : 1000,
@@ -72,17 +72,16 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(logFormat));
 }
 
-// ✅ Railway: Продакшен CORS
+// ✅ nginx: CORS конфигурация для вашего домена
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
-      process.env.CORS_ORIGIN,
-      process.env.FRONTEND_URL,
-      console.log('CORS_ORIGIN:', process.env.CORS_ORIGIN),
-      console.log('FRONTEND_URL:', process.env.FRONTEND_URL),
+      'https://kartofan.online',
       'http://localhost:3100',
       'http://127.0.0.1:3100'
     ].filter(Boolean);
+    
+    console.log('🌐 CORS Origin:', origin);
     
     // Разрешаем запросы без origin (мобильные приложения, Postman)
     if (!origin) return callback(null, true);
@@ -90,7 +89,7 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}`);
+      console.warn(`❌ CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -106,54 +105,20 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ✅ ИСПРАВЛЕНИЕ: Статические файлы фронтенда для Railway
-if (process.env.NODE_ENV === 'production') {
-  const publicPath = path.join(__dirname, '../public');
-  
-  // Проверяем что директория существует
-  if (fs.existsSync(publicPath)) {
-    console.log(`📁 Serving static files from: ${publicPath}`);
-    
-    // Проверяем содержимое директории
-    try {
-      const files = fs.readdirSync(publicPath);
-      console.log(`📂 Files in public directory: ${files.join(', ')}`);
-      
-      // Проверяем наличие index.html
-      const indexExists = fs.existsSync(path.join(publicPath, 'index.html'));
-      console.log(`📄 index.html exists: ${indexExists}`);
-      
-    } catch (err) {
-      console.error(`❌ Error reading public directory:`, err);
-    }
-    
-    // Отдаем статические файлы с правильными заголовками
-    app.use(express.static(publicPath, {
-      maxAge: '1y',
-      etag: false,
-      lastModified: false,
-      index: false  // НЕ отдаем index.html автоматически
-    }));
-    
-  } else {
-    console.error(`❌ Public directory not found: ${publicPath}`);
-  }
-}
-
 // ✅ ОТЛАДКА: Логирование всех запросов
 app.use((req, res, next) => {
   console.log(`🌐 Request: ${req.method} ${req.path} - Origin: ${req.get('Origin')} - User-Agent: ${req.get('User-Agent')?.substring(0, 30)}`);
   next();
 });
 
-// ✅ ТЕСТ: Простой роут для проверки
+// ✅ nginx: Тест роут для проверки работы backend
 app.get('/test', (req, res) => {
   res.send(`
-    <h1>✅ Railway App Works!</h1>
+    <h1>✅ Backend Works!</h1>
     <p>Environment: ${process.env.NODE_ENV}</p>
-    <p>Railway Domain: ${process.env.RAILWAY_DOMAIN}</p>
-    <p>Static files directory exists: ${fs.existsSync(path.join(__dirname, '../public'))}</p>
-    <p>Index.html exists: ${fs.existsSync(path.join(__dirname, '../public/index.html'))}</p>
+    <p>Domain: kartofan.online</p>
+    <p>Port: ${PORT}</p>
+    <p>Time: ${new Date().toISOString()}</p>
     <a href="/api/health">Health Check</a>
   `);
 });
@@ -165,7 +130,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/media', mediaRoutes);
 
-// Health check для Railway
+// Health check для nginx
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -173,37 +138,15 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV,
     version: '1.0.0',
     port: PORT,
-    railway: process.env.RAILWAY_ENVIRONMENT_NAME || 'local'
+    domain: 'kartofan.online',
+    nginx: true
   });
 });
 
-// ✅ ИСПРАВЛЕНИЕ: Catch-all для React Router (ТОЛЬКО в продакшене)
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    // Исключаем API роуты
-    if (req.path.startsWith('/api/')) {
-      return res.status(404).json({
-        error: 'API endpoint not found',
-        message: `The endpoint ${req.path} does not exist.`,
-      });
-    }
-    
-    // ✅ Отдаем index.html для React Router
-    const indexPath = path.join(__dirname, '../public/index.html');
-    if (fs.existsSync(indexPath)) {
-      console.log(`📄 Serving React app for: ${req.path}`);
-      res.sendFile(indexPath);
-    } else {
-      console.error(`❌ index.html not found at: ${indexPath}`);
-      res.status(500).json({
-        error: 'React app not found',
-        message: 'Frontend build files are missing'
-      });
-    }
-  });
-}
+// ✅ nginx: НЕ ОТДАЕМ СТАТИКУ - это делает nginx для frontend
+// Frontend статику отдает nginx напрямую
 
-// 404 для API (только если не в продакшене или если путь начинается с /api/)
+// 404 для API
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     error: 'API endpoint not found',
@@ -211,7 +154,7 @@ app.use('/api/*', (req, res) => {
   });
 });
 
-// ✅ Railway: Продакшен error handler
+// ✅ nginx: Продакшен error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   
@@ -240,42 +183,30 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ✅ Railway: Startup function
+// ✅ nginx: Startup function
 async function startServer() {
   try {
-    console.log('🚂 Starting Portfolio on Railway...');
+    console.log('🌐 Starting Portfolio for nginx deployment...');
     console.log(`📦 Environment: ${process.env.NODE_ENV}`);
-    console.log(`🌍 Railway Environment: ${process.env.RAILWAY_ENVIRONMENT_NAME || 'local'}`);
+    console.log(`🌍 Domain: kartofan.online`);
+    console.log(`🔌 Port: ${PORT}`);
     
     await initializeDatabase();
     console.log('✅ Database initialized');
     
-    // ✅ MinIO для Railway
-    if (process.env.RAILWAY_ENVIRONMENT_NAME || process.env.ENABLE_MINIO === 'true') {
-      try {
-        await initializeMinio();
-        console.log('✅ MinIO initialized');
-      } catch (error) {
-        console.warn('⚠️ MinIO initialization failed, continuing without MinIO:', error.message);
-      }
-    } else if (process.env.NODE_ENV === 'development') {
-      try {
-        await initializeMinio();
-        console.log('✅ MinIO initialized');
-      } catch (error) {
-        console.warn('⚠️ MinIO initialization failed, continuing without MinIO:', error.message);
-      }
-    } else {
-      console.log('ℹ️ Skipping MinIO in production mode');
+    // MinIO для nginx конфигурации
+    try {
+      await initializeMinio();
+      console.log('✅ MinIO initialized');
+    } catch (error) {
+      console.warn('⚠️ MinIO initialization failed, continuing without MinIO:', error.message);
     }
     
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🌟 Server running on port ${PORT}`);
+      console.log(`🌟 Backend server running on port ${PORT}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-      
-      if (process.env.RAILWAY_ENVIRONMENT_NAME) {
-        console.log(`🚂 Railway URL: https://${process.env.RAILWAY_DOMAIN || 'production.railway.app'}`);
-      }
+      console.log(`🌍 Public URL: https://kartofan.online/api/health`);
+      console.log(`📁 Media URL: https://kartofan.online/media/`);
     });
     
   } catch (error) {
@@ -284,7 +215,7 @@ async function startServer() {
   }
 }
 
-// ✅ Railway: Graceful shutdown
+// ✅ nginx: Graceful shutdown
 const gracefulShutdown = (signal) => {
   console.log(`👋 ${signal} received, shutting down gracefully`);
   process.exit(0);
@@ -293,7 +224,7 @@ const gracefulShutdown = (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// ✅ Railway: Unhandled rejections
+// ✅ nginx: Unhandled rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
