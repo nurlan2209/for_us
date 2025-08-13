@@ -1,39 +1,54 @@
-// backend/src/services/minio.js - ИСПРАВЛЕННАЯ ВЕРСИЯ ДЛЯ NGINX
+// backend/src/services/minio.js - ИСПРАВЛЕННАЯ ВЕРСИЯ для Docker
 import * as Minio from 'minio';
 import { v4 as uuidv4 } from 'uuid';
 
 let minioClient = null;
 
 /**
- * Initialize MinIO client for nginx proxy setup
+ * Initialize MinIO client for Docker + nginx proxy setup
  */
 async function initializeMinio() {
   try {
-    console.log('🚀 Initializing MinIO for nginx proxy...');
+    console.log('🚀 Initializing MinIO for Docker + nginx proxy...');
     
-    // MinIO подключение - внутреннее соединение
+    // ✅ ИСПРАВЛЕНИЕ: Используем имя сервиса Docker вместо localhost
+    const minioEndpoint = process.env.MINIO_ENDPOINT || 'minio'; // имя сервиса в docker-compose
+    const minioPort = parseInt(process.env.MINIO_PORT) || 9000;
+    const accessKey = process.env.MINIO_ACCESS_KEY || 'prodportfolioadmin';
+    const secretKey = process.env.MINIO_SECRET_KEY || 'prod-portfolio-secret-key-2025';
+    
+    console.log(`🔧 Connecting to MinIO: ${minioEndpoint}:${minioPort}`);
+    
     minioClient = new Minio.Client({
-      endPoint: 'localhost', // Локальное подключение внутри сервера
-      port: 9000,
+      endPoint: minioEndpoint, // 'minio' для Docker, 'localhost' для локальной разработки
+      port: minioPort,
       useSSL: false, // nginx терминирует SSL
-      accessKey: process.env.MINIO_ACCESS_KEY || 'prodportfolioadmin',
-      secretKey: process.env.MINIO_SECRET_KEY || 'prod-portfolio-secret-key-2025'
+      accessKey: accessKey,
+      secretKey: secretKey
     });
 
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
-    // Проверяем соединение с MinIO
-    let retries = 10;
+    // Проверяем соединение с MinIO с увеличенным таймаутом
+    let retries = 15; // Увеличиваем количество попыток
     while (retries > 0) {
       try {
         await minioClient.listBuckets();
-        console.log('✅ Connected to MinIO');
+        console.log('✅ Connected to MinIO successfully');
         break;
       } catch (error) {
-        console.log(`⏳ Waiting for MinIO... (${retries} retries left)`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log(`⏳ Waiting for MinIO ${minioEndpoint}:${minioPort}... (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Увеличиваем интервал
         retries--;
-        if (retries === 0) throw error;
+        if (retries === 0) {
+          console.error('❌ MinIO connection details:', {
+            endpoint: minioEndpoint,
+            port: minioPort,
+            accessKey: accessKey,
+            error: error.message
+          });
+          throw error;
+        }
       }
     }
     
@@ -50,13 +65,13 @@ async function initializeMinio() {
     const corsConfig = {
       CORSRules: [
         {
-          ID: 'NginxProxy',
+          ID: 'NginxDockerProxy',
           AllowedHeaders: ['*'],
           AllowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
           AllowedOrigins: [
             'https://kartofan.online',
             'https://www.kartofan.online',
-            'http://localhost:3100' // для разработки
+            'http://localhost:3100'
           ],
           ExposeHeaders: ['ETag', 'Content-Length', 'Content-Type'],
           MaxAgeSeconds: 3600
@@ -93,7 +108,7 @@ async function initializeMinio() {
       console.warn('⚠️ Bucket policy failed:', policyError.message);
     }
     
-    console.log('✅ MinIO initialized for nginx proxy');
+    console.log('✅ MinIO initialized successfully for Docker + nginx proxy');
     return minioClient;
     
   } catch (error) {
@@ -124,7 +139,7 @@ async function uploadFile(file, folder = 'uploads') {
     // Загружаем файл в MinIO
     await client.putObject(bucketName, fileName, file.buffer, file.size, metaData);
     
-    // ✅ ВАЖНО: URL через nginx proxy
+    // ✅ URL через nginx proxy
     const fileUrl = `https://kartofan.online/media/${bucketName}/${fileName}`;
     
     console.log('📤 File uploaded:', fileName);

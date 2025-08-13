@@ -1,4 +1,4 @@
-# docker-compose.yml - ДЛЯ NGINX PROXY SETUP
+# docker-compose.yml - ИСПРАВЛЕННАЯ ВЕРСИЯ для nginx
 version: '3.8'
 
 services:
@@ -8,7 +8,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3100:3100"  # nginx проксирует / на этот порт
+      - "3100:3100"  # nginx проксирует на этот порт
+    depends_on:
+      - backend
     environment:
       - REACT_APP_API_URL=https://kartofan.online/api
       - REACT_APP_MINIO_URL=https://kartofan.online/media
@@ -19,7 +21,7 @@ services:
       - portfolio-network
     restart: unless-stopped
 
-  # Backend (Express) - порт 8100  
+  # Backend (Express) - порт 8100
   backend:
     build:
       context: ./backend
@@ -35,6 +37,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-your-secret-key-2025}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      # ✅ ИСПРАВЛЕНИЕ: Используем имя сервиса Docker для MinIO
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-prodportfolioadmin}
@@ -46,18 +49,29 @@ services:
     networks:
       - portfolio-network
     restart: unless-stopped
+    # ✅ Ждем запуска MinIO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # MinIO (File Storage) - порт 9000
   minio:
     image: minio/minio:latest
     ports:
       - "9000:9000"   # nginx проксирует /media/* на этот порт
-      - "9001:9001"   # админка MinIO (опционально)
+      - "9001:9001"   # админка MinIO
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-prodportfolioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-prod-portfolio-secret-key-2025}
+      # ✅ Дополнительные настройки для nginx
+      - MINIO_SERVER_URL=https://kartofan.online/media
+      - MINIO_BROWSER_REDIRECT_URL=https://kartofan.online:9001
     volumes:
       - minio_data:/data
+      - minio_config:/root/.minio
     command: server /data --console-address ":9001" --address ":9000"
     networks:
       - portfolio-network
@@ -67,6 +81,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
 networks:
   portfolio-network:
@@ -74,3 +89,6 @@ networks:
 
 volumes:
   minio_data:
+    driver: local
+  minio_config:
+    driver: local
