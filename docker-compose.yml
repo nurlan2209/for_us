@@ -1,16 +1,14 @@
-# docker-compose.yml - КОНФИГУРАЦИЯ ДЛЯ NGINX
+# docker-compose.yml - ДЛЯ NGINX PROXY SETUP
 version: '3.8'
 
 services:
-  # Frontend (React)
+  # Frontend (React) - порт 3100
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3100:3100"  # nginx проксирует на этот порт
-    depends_on:
-      - backend
+      - "3100:3100"  # nginx проксирует / на этот порт
     environment:
       - REACT_APP_API_URL=https://kartofan.online/api
       - REACT_APP_MINIO_URL=https://kartofan.online/media
@@ -21,7 +19,7 @@ services:
       - portfolio-network
     restart: unless-stopped
 
-  # Backend (Express)
+  # Backend (Express) - порт 8100  
   backend:
     build:
       context: ./backend
@@ -33,41 +31,33 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8100
-      - API_PORT=8100
       - CORS_ORIGIN=https://kartofan.online
-      - FRONTEND_URL=https://kartofan.online
-      - JWT_SECRET=${JWT_SECRET}
-      - ADMIN_USERNAME=${ADMIN_USERNAME}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-2025}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - MINIO_USE_SSL=false
-      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-prodportfolioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-prod-portfolio-secret-key-2025}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-portfolio-files}
       - MINIO_PUBLIC_URL=https://kartofan.online/media
     volumes:
-      - ./backend/src:/app/src
       - ./backend/data:/app/data
     networks:
       - portfolio-network
     restart: unless-stopped
 
-  # MinIO (File Storage)
+  # MinIO (File Storage) - порт 9000
   minio:
     image: minio/minio:latest
     ports:
       - "9000:9000"   # nginx проксирует /media/* на этот порт
       - "9001:9001"   # админка MinIO (опционально)
     environment:
-      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
-      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
-      # CORS настройки для работы с nginx
-      - MINIO_API_CORS_ALLOW_ORIGIN=https://kartofan.online
-      - MINIO_BROWSER_REDIRECT_URL=https://kartofan.online:9001
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-prodportfolioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-prod-portfolio-secret-key-2025}
     volumes:
-      - ./minio/data:/data
-      - ./minio/config:/root/.minio
+      - minio_data:/data
     command: server /data --console-address ":9001" --address ":9000"
     networks:
       - portfolio-network
@@ -75,27 +65,8 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
-      timeout: 20s
+      timeout: 10s
       retries: 3
-
-  # Optional: Database backup service
-  backup:
-    image: alpine:latest
-    volumes:
-      - ./backup:/backup
-      - ./backend/data:/data
-    command: |
-      sh -c "
-        while true; do
-          tar -czf /backup/db_backup_$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
-          find /backup -name '*.tar.gz' -mtime +7 -delete
-          sleep 86400
-        done
-      "
-    depends_on:
-      - backend
-    networks:
-      - portfolio-network
 
 networks:
   portfolio-network:
@@ -103,4 +74,3 @@ networks:
 
 volumes:
   minio_data:
-  backend_data:

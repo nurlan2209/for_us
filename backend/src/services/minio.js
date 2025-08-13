@@ -1,34 +1,33 @@
-// backend/src/services/minio.js - КОНФИГУРАЦИЯ ДЛЯ NGINX
+// backend/src/services/minio.js - ИСПРАВЛЕННАЯ ВЕРСИЯ ДЛЯ NGINX
 import * as Minio from 'minio';
 import { v4 as uuidv4 } from 'uuid';
 
 let minioClient = null;
 
 /**
- * Initialize MinIO client and create bucket
+ * Initialize MinIO client for nginx proxy setup
  */
 async function initializeMinio() {
   try {
-    console.log('🚀 Initializing MinIO for nginx...');
+    console.log('🚀 Initializing MinIO for nginx proxy...');
     
-    // ✅ nginx: MinIO подключение через localhost (внутри Docker)
-    const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
-    
+    // MinIO подключение - внутреннее соединение
     minioClient = new Minio.Client({
-      endPoint: endpoint,
-      port: parseInt(process.env.MINIO_PORT) || 9000,
+      endPoint: 'localhost', // Локальное подключение внутри сервера
+      port: 9000,
       useSSL: false, // nginx терминирует SSL
-      accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-      secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin123'
+      accessKey: process.env.MINIO_ACCESS_KEY || 'prodportfolioadmin',
+      secretKey: process.env.MINIO_SECRET_KEY || 'prod-portfolio-secret-key-2025'
     });
 
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
-    // ✅ Ждем MinIO
+    // Проверяем соединение с MinIO
     let retries = 10;
     while (retries > 0) {
       try {
         await minioClient.listBuckets();
+        console.log('✅ Connected to MinIO');
         break;
       } catch (error) {
         console.log(`⏳ Waiting for MinIO... (${retries} retries left)`);
@@ -38,35 +37,28 @@ async function initializeMinio() {
       }
     }
     
-    // Check if bucket exists, create if not
+    // Создаем bucket если не существует
     const bucketExists = await minioClient.bucketExists(bucketName);
     if (!bucketExists) {
       await minioClient.makeBucket(bucketName, 'us-east-1');
-      console.log(`✅ Bucket '${bucketName}' created successfully`);
+      console.log(`✅ Bucket '${bucketName}' created`);
     } else {
-      console.log(`✅ Bucket '${bucketName}' already exists`);
+      console.log(`✅ Bucket '${bucketName}' exists`);
     }
     
-    // ✅ nginx: CORS политика для работы через nginx proxy
+    // CORS для работы через nginx
     const corsConfig = {
       CORSRules: [
         {
-          ID: 'AllowNginxProxy',
+          ID: 'NginxProxy',
           AllowedHeaders: ['*'],
           AllowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
           AllowedOrigins: [
             'https://kartofan.online',
-            'http://localhost:3100',
-            '*'  // Для разработки
+            'https://www.kartofan.online',
+            'http://localhost:3100' // для разработки
           ],
-          ExposeHeaders: [
-            'ETag',
-            'Content-Range', 
-            'Content-Length',
-            'Content-Type',
-            'Last-Modified',
-            'Accept-Ranges'
-          ],
+          ExposeHeaders: ['ETag', 'Content-Length', 'Content-Type'],
           MaxAgeSeconds: 3600
         }
       ]
@@ -74,12 +66,12 @@ async function initializeMinio() {
 
     try {
       await minioClient.setBucketCors(bucketName, corsConfig);
-      console.log('✅ CORS policy set for nginx proxy');
+      console.log('✅ CORS configured for nginx proxy');
     } catch (corsError) {
-      console.error('⚠️ CORS policy error:', corsError.message);
+      console.warn('⚠️ CORS config failed:', corsError.message);
     }
     
-    // ✅ nginx: bucket policy для публичного доступа через /media/
+    // Публичная политика для чтения через nginx /media/
     const policy = {
       Version: '2012-10-17',
       Statement: [
@@ -88,9 +80,7 @@ async function initializeMinio() {
           Principal: { AWS: ['*'] },
           Action: ['s3:GetObject'],
           Resource: [
-            `arn:aws:s3:::${bucketName}/images/*`,
-            `arn:aws:s3:::${bucketName}/videos/*`,
-            `arn:aws:s3:::${bucketName}/documents/*`
+            `arn:aws:s3:::${bucketName}/*`
           ]
         }
       ]
@@ -98,29 +88,29 @@ async function initializeMinio() {
     
     try {
       await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
-      console.log('✅ Bucket policy set for public access via nginx');
+      console.log('✅ Bucket policy set for public access');
     } catch (policyError) {
-      console.error('⚠️ Bucket policy error:', policyError.message);
+      console.warn('⚠️ Bucket policy failed:', policyError.message);
     }
     
-    console.log('✅ MinIO initialized successfully for nginx proxy');
+    console.log('✅ MinIO initialized for nginx proxy');
     return minioClient;
     
   } catch (error) {
-    console.error('❌ Error initializing MinIO:', error);
+    console.error('❌ MinIO initialization failed:', error);
     throw error;
   }
 }
 
 /**
- * Upload file to MinIO - для nginx
+ * Upload file to MinIO
  */
 async function uploadFile(file, folder = 'uploads') {
   try {
     const client = getMinioClient();
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
-    // Generate unique filename
+    // Генерируем уникальное имя файла
     const fileExtension = file.originalname.split('.').pop();
     const fileName = `${folder}/${uuidv4()}.${fileExtension}`;
     
@@ -131,25 +121,26 @@ async function uploadFile(file, folder = 'uploads') {
       'Cache-Control': 'public, max-age=31536000',
     };
     
-    // Upload file
+    // Загружаем файл в MinIO
     await client.putObject(bucketName, fileName, file.buffer, file.size, metaData);
     
-    // ✅ nginx: URL через nginx proxy /media/
+    // ✅ ВАЖНО: URL через nginx proxy
     const fileUrl = `https://kartofan.online/media/${bucketName}/${fileName}`;
     
-    console.log('🔗 Generated URL via nginx:', fileUrl);
+    console.log('📤 File uploaded:', fileName);
+    console.log('🔗 Public URL:', fileUrl);
     
     return {
       fileName,
       originalName: file.originalname,
       size: file.size,
       mimetype: file.mimetype,
-      url: fileUrl,
+      url: fileUrl, // URL через nginx
       bucket: bucketName
     };
     
   } catch (error) {
-    console.error('Error uploading file:', error);
+    console.error('❌ Upload error:', error);
     throw error;
   }
 }
@@ -173,10 +164,12 @@ async function deleteFile(fileName) {
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
     await client.removeObject(bucketName, fileName);
+    console.log('🗑️ File deleted:', fileName);
+    
     return { success: true, fileName };
     
   } catch (error) {
-    console.error('Error deleting file:', error);
+    console.error('❌ Delete error:', error);
     throw error;
   }
 }
@@ -188,11 +181,11 @@ async function getFileUrl(fileName, expiry = 24 * 60 * 60) {
   try {
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
-    // ✅ nginx: возвращаем прямую ссылку через nginx proxy
+    // Для публичных файлов через nginx не нужны signed URLs
     return `https://kartofan.online/media/${bucketName}/${fileName}`;
     
   } catch (error) {
-    console.error('Error generating file URL:', error);
+    console.error('❌ URL generation error:', error);
     throw error;
   }
 }
