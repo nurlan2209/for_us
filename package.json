@@ -1,0 +1,71 @@
+{
+  "name": "3d-portfolio-nginx",
+  "version": "1.0.0",
+  "description": "3D Portfolio with nginx proxy setup",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "docker-compose -f docker-compose.yml up --build",
+    "dev:detached": "docker-compose -f docker-compose.yml up --build -d",
+    "start": "docker-compose up -d",
+    "stop": "docker-compose down",
+    "restart": "docker-compose restart",
+    "rebuild": "docker-compose down && docker-compose up --build -d",
+    "logs": "docker-compose logs -f",
+    "logs:backend": "docker-compose logs -f backend",
+    "logs:frontend": "docker-compose logs -f frontend",
+    "logs:minio": "docker-compose logs -f minio",
+    "status": "docker-compose ps",
+    "build": "docker-compose build",
+    "build:no-cache": "docker-compose build --no-cache",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm install --production",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "clean": "docker-compose down -v --remove-orphans && docker system prune -f",
+    "clean:all": "docker-compose down -v --remove-orphans && docker system prune -af && docker volume prune -f",
+    "deploy": "chmod +x deploy.sh && ./deploy.sh",
+    "deploy:quick": "docker-compose down && docker-compose up --build -d",
+    "backup": "docker-compose exec backend tar -czf /app/data/backup-$(date +%Y%m%d-%H%M%S).tar.gz /app/data/db.json",
+    "health": "curl -f https://kartofan.online/api/health || curl -f http://localhost:8100/api/health",
+    "health:all": "npm run health && curl -f https://kartofan.online && curl -f http://localhost:9000/minio/health/live",
+    "test:local": "curl -f http://localhost:8100/test && curl -f http://localhost:3100 && curl -f http://localhost:9000/minio/health/live",
+    "test:production": "curl -f https://kartofan.online/api/health && curl -f https://kartofan.online && curl -f https://kartofan.online/media/",
+    "nginx:test": "sudo nginx -t",
+    "nginx:reload": "sudo systemctl reload nginx",
+    "nginx:status": "sudo systemctl status nginx",
+    "docker:stats": "docker stats --format 'table {{.Container}}\\t{{.CPUPerc}}\\t{{.MemUsage}}\\t{{.NetIO}}\\t{{.PIDs}}'",
+    "docker:clean": "docker container prune -f && docker image prune -f",
+    "monitor": "watch -n 5 'docker-compose ps && echo \"\" && curl -s https://kartofan.online/api/health | jq .'",
+    "setup": "npm run install:all && cp .env.example .env.production && echo 'Please configure .env.production before deployment'",
+    "cert:renew": "sudo certbot renew --nginx && sudo systemctl reload nginx"
+  },
+  "keywords": [
+    "portfolio", 
+    "3d", 
+    "nginx", 
+    "docker", 
+    "react", 
+    "nodejs", 
+    "minio", 
+    "threejs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nurlan2209/for_us.git"
+  },
+  "author": "Portfolio Developer <contact@kartofan.online>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0",
+    "docker": ">=20.0.0",
+    "docker-compose": ">=2.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
