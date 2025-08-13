@@ -78,6 +78,8 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.CORS_ORIGIN,
       process.env.FRONTEND_URL,
+      console.log('CORS_ORIGIN:', process.env.CORS_ORIGIN),
+      console.log('FRONTEND_URL:', process.env.FRONTEND_URL),
       'http://localhost:3100',
       'http://127.0.0.1:3100'
     ].filter(Boolean);
