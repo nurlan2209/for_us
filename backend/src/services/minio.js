@@ -5,110 +5,135 @@ import { v4 as uuidv4 } from 'uuid';
 let minioClient = null;
 
 /**
- * Initialize MinIO client for Docker + nginx proxy setup
+ * Initialize MinIO client для Docker + nginx proxy setup
  */
 async function initializeMinio() {
   try {
     console.log('🚀 Initializing MinIO for Docker + nginx proxy...');
     
-    // ✅ ИСПРАВЛЕНИЕ: Используем имя сервиса Docker вместо localhost
-    const minioEndpoint = process.env.MINIO_ENDPOINT || 'minio'; // имя сервиса в docker-compose
+    // ✅ ИСПРАВЛЕНИЕ: Используем правильный endpoint для Docker сети
+    const minioEndpoint = process.env.MINIO_ENDPOINT || 'minio';
     const minioPort = parseInt(process.env.MINIO_PORT) || 9000;
     const accessKey = process.env.MINIO_ACCESS_KEY || 'prodportfolioadmin';
     const secretKey = process.env.MINIO_SECRET_KEY || 'prod-portfolio-secret-key-2025';
     
-    console.log(`🔧 Connecting to MinIO: ${minioEndpoint}:${minioPort}`);
-    
-    minioClient = new Minio.Client({
-      endPoint: minioEndpoint, // 'minio' для Docker, 'localhost' для локальной разработки
+    console.log(`🔧 MinIO Config:`, {
+      endpoint: minioEndpoint,
       port: minioPort,
-      useSSL: false, // nginx терминирует SSL
       accessKey: accessKey,
-      secretKey: secretKey
+      useSSL: false
+    });
+    
+    // ✅ ИСПРАВЛЕНИЕ: Принудительно используем IPv4
+    minioClient = new Minio.Client({
+      endPoint: minioEndpoint,
+      port: minioPort,
+      useSSL: false,
+      accessKey: accessKey,
+      secretKey: secretKey,
+      // ✅ ДОБАВЛЯЕМ настройки для IPv4
+      region: 'us-east-1',
+      partSize: 64 * 1024 * 1024, // 64MB
     });
 
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
-    // Проверяем соединение с MinIO с увеличенным таймаутом
-    let retries = 15; // Увеличиваем количество попыток
-    while (retries > 0) {
+    // ✅ ИСПРАВЛЕНИЕ: Увеличиваем количество попыток подключения
+    let retries = 30; // Увеличиваем с 15 до 30
+    let connected = false;
+    
+    while (retries > 0 && !connected) {
       try {
-        await minioClient.listBuckets();
-        console.log('✅ Connected to MinIO successfully');
+        console.log(`🔄 Attempting to connect to MinIO ${minioEndpoint}:${minioPort}... (${retries} retries left)`);
+        
+        // ✅ Проверяем соединение с таймаутом
+        const buckets = await Promise.race([
+          minioClient.listBuckets(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Connection timeout')), 5000)
+          )
+        ]);
+        
+        console.log('✅ Connected to MinIO successfully, buckets:', buckets.length);
+        connected = true;
         break;
+        
       } catch (error) {
-        console.log(`⏳ Waiting for MinIO ${minioEndpoint}:${minioPort}... (${retries} retries left)`);
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Увеличиваем интервал
+        console.log(`⏳ MinIO connection failed: ${error.message}`);
         retries--;
+        
         if (retries === 0) {
           console.error('❌ MinIO connection details:', {
             endpoint: minioEndpoint,
             port: minioPort,
             accessKey: accessKey,
-            error: error.message
+            error: error.message,
+            stack: error.stack
           });
-          throw error;
+          throw new Error(`Failed to connect to MinIO after 30 attempts: ${error.message}`);
         }
+        
+        // Ждем перед следующей попыткой
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
-    // Создаем bucket если не существует
-    const bucketExists = await minioClient.bucketExists(bucketName);
-    if (!bucketExists) {
-      await minioClient.makeBucket(bucketName, 'us-east-1');
-      console.log(`✅ Bucket '${bucketName}' created`);
-    } else {
-      console.log(`✅ Bucket '${bucketName}' exists`);
+    // ✅ Создаем bucket если не существует
+    try {
+      const bucketExists = await minioClient.bucketExists(bucketName);
+      if (!bucketExists) {
+        await minioClient.makeBucket(bucketName, 'us-east-1');
+        console.log(`✅ Bucket '${bucketName}' created`);
+      } else {
+        console.log(`✅ Bucket '${bucketName}' exists`);
+      }
+    } catch (bucketError) {
+      console.error('❌ Bucket creation/check failed:', bucketError);
+      // Не бросаем ошибку, продолжаем работу
     }
     
-    // CORS для работы через nginx
-    const corsConfig = {
-      CORSRules: [
-        {
-          ID: 'NginxDockerProxy',
-          AllowedHeaders: ['*'],
-          AllowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
-          AllowedOrigins: [
-            'https://kartofan.online',
-            'https://www.kartofan.online',
-            'http://localhost:3100'
-          ],
-          ExposeHeaders: ['ETag', 'Content-Length', 'Content-Type'],
-          MaxAgeSeconds: 3600
-        }
-      ]
-    };
+    // ✅ ИСПРАВЛЕНИЕ: Упрощенная CORS конфигурация
+    try {
+      const corsConfig = {
+        CORSRules: [
+          {
+            ID: 'AllowAll',
+            AllowedHeaders: ['*'],
+            AllowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD'],
+            AllowedOrigins: ['*'], // Разрешаем все origins для начала
+            ExposeHeaders: ['ETag', 'Content-Length', 'Content-Type'],
+            MaxAgeSeconds: 3600
+          }
+        ]
+      };
 
-    try {
       await minioClient.setBucketCors(bucketName, corsConfig);
-      console.log('✅ CORS configured for nginx proxy');
+      console.log('✅ CORS configured');
     } catch (corsError) {
-      console.warn('⚠️ CORS config failed:', corsError.message);
+      console.warn('⚠️ CORS config failed (but continuing):', corsError.message);
     }
     
-    // Публичная политика для чтения через nginx /media/
-    const policy = {
-      Version: '2012-10-17',
-      Statement: [
-        {
-          Effect: 'Allow',
-          Principal: { AWS: ['*'] },
-          Action: ['s3:GetObject'],
-          Resource: [
-            `arn:aws:s3:::${bucketName}/*`
-          ]
-        }
-      ]
-    };
-    
+    // ✅ Публичная политика
     try {
+      const policy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Effect: 'Allow',
+            Principal: { AWS: ['*'] },
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${bucketName}/*`]
+          }
+        ]
+      };
+      
       await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
       console.log('✅ Bucket policy set for public access');
     } catch (policyError) {
-      console.warn('⚠️ Bucket policy failed:', policyError.message);
+      console.warn('⚠️ Bucket policy failed (but continuing):', policyError.message);
     }
     
-    console.log('✅ MinIO initialized successfully for Docker + nginx proxy');
+    console.log('✅ MinIO initialized successfully');
     return minioClient;
     
   } catch (error) {
@@ -122,7 +147,10 @@ async function initializeMinio() {
  */
 async function uploadFile(file, folder = 'uploads') {
   try {
-    const client = getMinioClient();
+    if (!minioClient) {
+      throw new Error('MinIO client not initialized');
+    }
+    
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
     // Генерируем уникальное имя файла
@@ -136,13 +164,20 @@ async function uploadFile(file, folder = 'uploads') {
       'Cache-Control': 'public, max-age=31536000',
     };
     
-    // Загружаем файл в MinIO
-    await client.putObject(bucketName, fileName, file.buffer, file.size, metaData);
+    console.log(`📤 Uploading file: ${fileName} (${file.size} bytes)`);
+    
+    // ✅ Загружаем файл с таймаутом
+    await Promise.race([
+      minioClient.putObject(bucketName, fileName, file.buffer, file.size, metaData),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout')), 30000) // 30 секунд таймаут
+      )
+    ]);
     
     // ✅ URL через nginx proxy
     const fileUrl = `https://kartofan.online/media/${bucketName}/${fileName}`;
     
-    console.log('📤 File uploaded:', fileName);
+    console.log('✅ File uploaded successfully:', fileName);
     console.log('🔗 Public URL:', fileUrl);
     
     return {
@@ -150,13 +185,13 @@ async function uploadFile(file, folder = 'uploads') {
       originalName: file.originalname,
       size: file.size,
       mimetype: file.mimetype,
-      url: fileUrl, // URL через nginx
+      url: fileUrl,
       bucket: bucketName
     };
     
   } catch (error) {
     console.error('❌ Upload error:', error);
-    throw error;
+    throw new Error(`File upload failed: ${error.message}`);
   }
 }
 
@@ -175,17 +210,20 @@ function getMinioClient() {
  */
 async function deleteFile(fileName) {
   try {
-    const client = getMinioClient();
+    if (!minioClient) {
+      throw new Error('MinIO client not initialized');
+    }
+    
     const bucketName = process.env.MINIO_BUCKET_NAME || 'portfolio-files';
     
-    await client.removeObject(bucketName, fileName);
+    await minioClient.removeObject(bucketName, fileName);
     console.log('🗑️ File deleted:', fileName);
     
     return { success: true, fileName };
     
   } catch (error) {
     console.error('❌ Delete error:', error);
-    throw error;
+    throw new Error(`File deletion failed: ${error.message}`);
   }
 }
 

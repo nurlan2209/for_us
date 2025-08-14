@@ -1,4 +1,4 @@
-# docker-compose.yml - ИСПРАВЛЕННАЯ ВЕРСИЯ для nginx
+# docker-compose.yml - ИСПРАВЛЕННАЯ ВЕРСИЯ для nginx с фиксом MinIO
 version: '3.8'
 
 services:
@@ -8,7 +8,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3100:3100"  # nginx проксирует на этот порт
+      - "3100:3100"
     depends_on:
       - backend
     environment:
@@ -27,9 +27,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8100:8100"  # nginx проксирует /api/* на этот порт
+      - "8100:8100"
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy  # ✅ Ждем здоровое состояние MinIO
     environment:
       - NODE_ENV=production
       - PORT=8100
@@ -49,43 +50,51 @@ services:
     networks:
       - portfolio-network
     restart: unless-stopped
-    # ✅ Ждем запуска MinIO
+    # ✅ Обновленный healthcheck с большими таймаутами
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8100/api/health"]
       interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      timeout: 15s
+      retries: 10
+      start_period: 120s  # Увеличиваем время запуска
 
   # MinIO (File Storage) - порт 9000
   minio:
     image: minio/minio:latest
     ports:
-      - "9000:9000"   # nginx проксирует /media/* на этот порт
-      - "9001:9001"   # админка MinIO
+      - "9000:9000"
+      - "9001:9001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-prodportfolioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-prod-portfolio-secret-key-2025}
-      # ✅ Дополнительные настройки для nginx
-      - MINIO_SERVER_URL=https://kartofan.online/media
+      # ✅ ИСПРАВЛЕНИЕ: Убираем проблемные URL настройки
       - MINIO_BROWSER_REDIRECT_URL=https://kartofan.online:9001
+      # ✅ ДОБАВЛЯЕМ настройки для корректной работы
+      - MINIO_REGION_NAME=us-east-1
+      - MINIO_DOMAIN=kartofan.online
     volumes:
       - minio_data:/data
       - minio_config:/root/.minio
-    command: server /data --console-address ":9001" --address ":9000"
+    # ✅ ИСПРАВЛЕНИЕ: Обновленная команда запуска
+    command: server /data --address ":9000" --console-address ":9001"
     networks:
       - portfolio-network
     restart: unless-stopped
+    # ✅ Улучшенный healthcheck для MinIO
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 5
       start_period: 30s
 
 networks:
   portfolio-network:
     driver: bridge
+    # ✅ ДОБАВЛЯЕМ настройки сети
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 volumes:
   minio_data:
