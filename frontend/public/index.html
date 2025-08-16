@@ -63,29 +63,6 @@
     }
     </script>
 
-    <style>
-      .goog-logo-link, .goog-te-gadget span {
-        display: none !important;
-      }
-
-      #google_translate_element {
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-      }
-
-      .goog-te-gadget {
-        color: #0ea5e9 !important;
-      }
-
-      .goog-te-banner-frame.skiptranslate,
-      .goog-te-gadget-simple img {
-        display: none !important;
-      }
-
-      body {
-        top: 0 !important;
-      }
-    </style>
     <title>ZN Studio</title>
   </head>
   <body>
@@ -110,21 +87,5 @@
     </noscript>
 
     <div id="root"></div>
-    <div id="google_translate_element" style="position: fixed; top: 10px; right: 10px; z-index: 9999;"></div>
-
-    <script type="text/javascript">
-      function googleTranslateElementInit() {
-        new google.translate.TranslateElement(
-          {
-            pageLanguage: 'en',
-            includedLanguages: 'en,ru',
-            layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-          },
-          'google_translate_element'
-        );
-      }
-    </script>
-
-    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   </body>
 </html>
