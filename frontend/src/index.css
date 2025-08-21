@@ -583,3 +583,435 @@ h1, h2, h3, h4, h5, h6 {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Добавить в frontend/src/index.css - МОБИЛЬНЫЙ СКРОЛЛ */
+
+/* Основные стили для мобильного скролла */
+@media (max-width: 768px) {
+  /* Блокируем стандартный скролл страницы на портфолио */
+  body.portfolio-3d-active {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+    touch-action: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Оптимизация canvas для мобильных */
+  .portfolio-3d-scene {
+    height: 100vh !important;
+    overflow: hidden;
+    position: relative;
+    /* Отключаем стандартные touch жесты */
+    overscroll-behavior: none;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .canvas-container {
+    /* Улучшаем производительность на мобильных */
+    -webkit-backface-visibility: hidden;
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+    /* Отключаем bounce эффект на iOS */
+    overscroll-behavior-y: none;
+    -webkit-overscroll-behavior-y: none;
+    /* Отключаем выделение текста */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Предотвращаем zoom на double tap */
+  .canvas-container canvas {
+    touch-action: none;
+    -ms-touch-action: none;
+  }
+}
+
+/* Специфические стили для iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .portfolio-3d-scene {
+    /* Фикс для Safari на iOS */
+    -webkit-overflow-scrolling: auto;
+    position: relative;
+  }
+
+  body.portfolio-3d-active {
+    /* Предотвращаем rubber band эффект */
+    position: fixed;
+    overflow: hidden;
+  }
+}
+
+/* Стили для мобильных подсказок */
+.mobile-hint-overlay {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 100;
+  animation: mobile-hint-fade 8s ease-in-out;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes mobile-hint-fade {
+  0%, 90% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* Индикатор скролла для мобильных */
+.mobile-scroll-indicator {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-scroll-indicator.active {
+  opacity: 1;
+}
+
+.scroll-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.scroll-indicator-dot.current {
+  background: #0066ff;
+  transform: scale(1.4);
+  box-shadow: 0 0 12px rgba(0, 102, 255, 0.6);
+}
+
+/* Счетчик проектов для мобильных */
+.mobile-project-counter {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 60px;
+  text-align: center;
+}
+
+/* Анимации для мобильных переходов */
+@keyframes mobile-card-transition {
+  0% {
+    transform: scale(0.9) rotateY(-15deg);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.05) rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+.mobile-card-transitioning {
+  animation: mobile-card-transition 0.4s ease-out;
+}
+
+/* Touch feedback эффект */
+.touch-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(0, 102, 255, 0.3);
+  pointer-events: none;
+  transform: scale(0);
+  animation: touch-ripple-animation 0.6s ease-out;
+  z-index: 1000;
+}
+
+@keyframes touch-ripple-animation {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Горизонтальная ориентация на мобильных */
+@media (max-width: 768px) and (orientation: landscape) {
+  .mobile-hint-overlay {
+    top: 5%;
+    font-size: 12px;
+    padding: 8px 16px;
+  }
+
+  .mobile-project-counter {
+    bottom: 10px;
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
+  .mobile-scroll-indicator {
+    right: 10px;
+    gap: 4px;
+  }
+
+  .scroll-indicator-dot {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 480px) {
+  .mobile-hint-overlay {
+    font-size: 13px;
+    padding: 10px 16px;
+    max-width: 90%;
+    text-align: center;
+  }
+
+  .mobile-project-counter {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+}
+
+/* Улучшения для старых Android устройств */
+@media (max-width: 768px) {
+  .canvas-container {
+    /* Принудительная GPU активация */
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+    /* Оптимизация рендеринга */
+    will-change: transform;
+    contain: layout style paint;
+  }
+}
+
+/* Поддержка notch на iPhone X+ */
+@supports (padding: env(safe-area-inset-top)) {
+  @media (max-width: 768px) {
+    .mobile-hint-overlay {
+      top: calc(10% + env(safe-area-inset-top));
+    }
+
+    .mobile-project-counter {
+      bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+    .mobile-scroll-indicator {
+      top: calc(50% + env(safe-area-inset-top) / 2);
+    }
+  }
+}
+
+/* Темная тема для мобильных элементов */
+@media (prefers-color-scheme: dark) and (max-width: 768px) {
+  .mobile-hint-overlay {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000;
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .mobile-project-counter {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000;
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .scroll-indicator-dot {
+    background: rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Высокий контраст для лучшей видимости */
+@media (prefers-contrast: high) and (max-width: 768px) {
+  .mobile-hint-overlay,
+  .mobile-project-counter {
+    border-width: 2px;
+    font-weight: 700;
+  }
+
+  .scroll-indicator-dot {
+    border: 2px solid #000;
+  }
+
+  .scroll-indicator-dot.current {
+    border-color: #fff;
+  }
+}
+
+/* Анимации для лучшего UX на мобильных */
+@keyframes swipe-hint {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.swipe-hint-arrow {
+  animation: swipe-hint 1.5s ease-in-out infinite;
+}
+
+/* Стили для вибрации/haptic feedback */
+.haptic-touch {
+  transition: transform 0.1s ease;
+}
+
+.haptic-touch:active {
+  transform: scale(0.95);
+}
+
+/* Оптимизация производительности для мобильных */
+@media (max-width: 768px) {
+  /* Ограничиваем сложные анимации на слабых устройствах */
+  @media (max-resolution: 150dpi) {
+    .mobile-card-transitioning,
+    .touch-ripple-animation,
+    .swipe-hint {
+      animation-duration: 0.2s !important;
+    }
+  }
+
+  /* Отключаем анимации для очень слабых устройств */
+  @media (max-width: 360px) and (max-height: 640px) {
+    .mobile-card-transitioning,
+    .touch-ripple,
+    .swipe-hint-arrow {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+/* Режим пониженного движения */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-card-transitioning,
+  .touch-ripple,
+  .swipe-hint-arrow,
+  .mobile-hint-fade {
+    animation: none !important;
+  }
+
+  .scroll-indicator-dot,
+  .haptic-touch {
+    transition: none !important;
+  }
+}
+
+/* Поддержка крупного шрифта */
+@media (prefers-font-size: large) and (max-width: 768px) {
+  .mobile-hint-overlay,
+  .mobile-project-counter {
+    font-size: 16px;
+    padding: 12px 20px;
+  }
+}
+
+/* Дополнительные стили для лучшей работы touch */
+@media (hover: none) and (pointer: coarse) {
+  /* Увеличиваем области touch */
+  .scroll-indicator-dot {
+    width: 12px;
+    height: 12px;
+    margin: 2px;
+  }
+
+  /* Убираем hover эффекты */
+  .mobile-hint-overlay:hover,
+  .mobile-project-counter:hover,
+  .scroll-indicator-dot:hover {
+    transform: none;
+  }
+}
+
+/* Специальные стили для планшетов */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .mobile-hint-overlay {
+    font-size: 15px;
+    padding: 12px 24px;
+  }
+
+  .mobile-project-counter {
+    font-size: 13px;
+    padding: 8px 16px;
+  }
+
+  .scroll-indicator-dot {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Фикс для WebView в мобильных приложениях */
+@supports (-webkit-touch-callout: none) {
+  .portfolio-3d-scene {
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Дополнительная оптимизация для производительности */
+.mobile-optimized {
+  /* GPU слои для smooth анимаций */
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Снижаем качество для старых устройств */
+  image-rendering: optimizeSpeed;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Стили для debugging на мобильных (только в development) */
+.mobile-debug-info {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  font-size: 10px;
+  z-index: 9999;
+  border-radius: 5px;
+  font-family: monospace;
+  pointer-events: none;
+}
+
+/* Скрываем debug в продакшене */
+@media not (prefers-reduced-motion: reduce) {
+  .mobile-debug-info {
+    display: none;
+  }
+}

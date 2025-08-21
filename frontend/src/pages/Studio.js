@@ -31,7 +31,7 @@ const Studio = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white pt-24" style={{ paddingTop: '300px' }}>
+    <div className="min-h-screen bg-white pt-24" style={{ paddingTop: '30%' }}>
       <div className="px-4 pl-1">
         
         {/* About Section */}
